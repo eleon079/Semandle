@@ -1,20 +1,15 @@
-// --- Configuration ---
-const LEVEL_1_WORD = "heated    "; // 6 letters + 4 spaces
-const LEVEL_2_WORD = "blanket   "; // 7 letters + 3 spaces
-let currentLevel = 1;
-let targetWord = LEVEL_1_WORD;
+// --- Global Data ---
+// window.GAME_DATA is loaded from words.js
+// It looks like: { structure: [...], dictionary: {...} }
+
+let gameStructure = [];
+let gameDictionary = {};
 
 // --- State ---
-let wordData = window.GAME_DICTIONARY || {}; 
-
+let currentTargetIndex = 0; // Which "target" word are we on? (0, 1, 2...)
+let currentLevelData = null; // Contains info about the current target word
 let currentInput = ""; 
-
-// STATE 1: Positional Hints (Yellow/Green)
-// true means "We have revealed the color of the tile at this index"
 let revealedPositionalMask = Array(10).fill(false); 
-
-// STATE 2: Dead Letter Hints (Grey)
-// A set of characters that we have revealed as "Not in word"
 let revealedDeadLetters = new Set();
 
 // --- Elements ---
@@ -23,43 +18,101 @@ const activeRow = document.getElementById('active-row');
 const levelIndicator = document.getElementById('level-indicator');
 const messageContainer = document.getElementById('message-container');
 const lastScoreDisplay = document.getElementById('last-score');
+const sentenceDisplay = document.getElementById('sentence-display');
 
 // --- Init ---
 function initGame() {
-    createKeyboard(); // Load UI first
-    if (!wordData || Object.keys(wordData).length === 0) {
+    createKeyboard(); 
+
+    if (!window.GAME_DATA) {
         showToast("Error: words.js not loaded!");
         return;
     }
-    startLevel(1);
+
+    gameStructure = window.GAME_DATA.structure;
+    gameDictionary = window.GAME_DATA.dictionary;
+
+    // Determine the first target
+    startLevel(0);
 }
 
-function startLevel(lvl) {
-    currentLevel = lvl;
-    targetWord = (lvl === 1) ? LEVEL_1_WORD : LEVEL_2_WORD;
+function startLevel(targetIdx) {
+    currentTargetIndex = targetIdx;
     
-    // Reset state
+    // 1. Find the word in the sentence structure that corresponds to this target index
+    // The structure might be: [Filler, Filler, Target(id=0), Filler, Target(id=1)]
+    let structureItem = gameStructure.find(item => item.id === targetIdx);
+    
+    if (!structureItem) {
+        // No more targets! Game Over / Grand Win
+        handleGrandWin();
+        return;
+    }
+
+    let targetWordString = structureItem.text.toLowerCase();
+    // Pad target to 10 chars (or length of word if you prefer dynamic, but your tiles are fixed 10)
+    // Your UI is built for 10 tiles. We must pad.
+    currentLevelData = {
+        word: targetWordString.padEnd(10, ' '),
+        originalLength: targetWordString.length
+    };
+
+    // Reset State
     currentInput = "";
     revealedPositionalMask = Array(10).fill(false);
     revealedDeadLetters = new Set();
     historyContainer.innerHTML = "";
-    levelIndicator.innerText = `Level ${lvl} / 2`;
     lastScoreDisplay.classList.add('hidden');
     lastScoreDisplay.innerText = "";
     
+    // Auto-reveal spaces
+    for(let i=0; i<10; i++) {
+        if(currentLevelData.word[i] === ' ') revealedPositionalMask[i] = true;
+    }
+
+    // Render UI
+    renderSentence();
+    levelIndicator.innerText = `Guessing Word ${targetIdx + 1}`;
     renderActiveRow();
     resetKeyboard();
 }
 
+function renderSentence() {
+    sentenceDisplay.innerHTML = '';
+    
+    gameStructure.forEach(item => {
+        let span = document.createElement('span');
+        span.className = 'sentence-word';
+        
+        if (item.type === 'filler') {
+            span.innerText = item.text;
+            span.classList.add('filler');
+        } else {
+            // It is a target
+            if (item.id < currentTargetIndex) {
+                // Already solved
+                span.innerText = item.text;
+                span.classList.add('target-solved');
+            } else if (item.id === currentTargetIndex) {
+                // Currently guessing (show blank with highlight)
+                span.innerText = item.text; // Text hidden by CSS
+                span.classList.add('target-active');
+            } else {
+                // Future word
+                span.innerText = item.text; // Text hidden by CSS
+                span.classList.add('target-hidden');
+            }
+        }
+        sentenceDisplay.appendChild(span);
+    });
+}
+
 // --- Input Handling ---
 function handleKey(key) {
-    if (key === 'ENTER') {
-        submitGuess();
-    } else if (key === 'BACKSPACE') {
-        if (currentInput.length > 0) {
-            currentInput = currentInput.slice(0, -1);
-            renderActiveRow();
-        }
+    if (key === 'ENTER') submitGuess();
+    else if (key === 'BACKSPACE') {
+        currentInput = currentInput.slice(0, -1);
+        renderActiveRow();
     } else {
         if (currentInput.length < 10) {
             currentInput += key;
@@ -71,55 +124,37 @@ function handleKey(key) {
 function submitGuess() {
     const guessClean = currentInput.trim().toLowerCase();
 
-    // 1. Length Check
-    if (guessClean.length < 2) {
-        shakeBoard();
-        showToast("Too short");
-        return;
-    }
+    if (guessClean.length < 2) { shakeBoard(); showToast("Too short"); return; }
+    if (!gameDictionary.hasOwnProperty(guessClean)) { shakeBoard(); showToast("Not in word list"); return; }
 
-    // 2. Dictionary Check
-    if (!wordData.hasOwnProperty(guessClean)) {
-        shakeBoard();
-        showToast("Not in word list");
-        return;
-    }
-
-    // 3. Process Valid Guess
-    const score = wordData[guessClean][currentLevel - 1]; 
-    const guessPadded = guessClean.padEnd(10, ' ');
+    // Get score for CURRENT target index
+    // Dictionary format: "word": [score_target_0, score_target_1, ...]
+    const scores = gameDictionary[guessClean];
+    const score = scores[currentTargetIndex];
     
+    const guessPadded = guessClean.padEnd(10, ' ');
+    const targetPadded = currentLevelData.word;
+
     // Win Check
-    if (guessPadded === targetWord) {
-        // Reveal everything for the win
-        addHistoryRow(guessPadded, Array(10).fill('green'), score, true);
+    if (guessClean === targetPadded.trim()) {
+        addHistoryRow(guessPadded, Array(10).fill('green'), 100, true);
         handleWin();
         return;
     }
 
-    // Calculate Colors
-    const colors = calculateColors(guessPadded, targetWord);
-    
-    // Select ONE new hint using STRICT PRIORITY
+    // Logic for hints (same as before)
+    const colors = calculateColors(guessPadded, targetPadded);
     selectNewHint(guessPadded, colors);
-
-    // Render History
     addHistoryRow(guessPadded, colors, score, false);
-    
-    // Update Keyboard
     updateKeyboard(guessPadded, colors);
 
-    // Update Score UI
     lastScoreDisplay.innerText = `Score: ${score}`;
     lastScoreDisplay.classList.remove('hidden');
     let hue = Math.max(0, Math.min(120, score * 1.2));
     lastScoreDisplay.style.color = `hsl(${hue}, 80%, 60%)`;
 
-    // Reset Input
     currentInput = "";
     renderActiveRow();
-    
-    // Auto-scroll
     const scrollArea = document.getElementById('board-scroll-area');
     scrollArea.scrollTop = scrollArea.scrollHeight;
 }
@@ -354,6 +389,7 @@ function shakeBoard() {
     setTimeout(() => activeRow.classList.remove('shake'), 500);
 }
 
+// --- Win Logic ---
 function handleWin() {
     const modal = document.getElementById('modal');
     const msg = document.getElementById('modal-msg');
@@ -362,24 +398,45 @@ function handleWin() {
     modal.classList.remove('hidden');
     action.innerHTML = ''; 
 
-    if (currentLevel === 1) {
-        msg.innerText = "Word 1 is HEATED.";
-        let btn = document.createElement('button');
-        btn.className = 'primary-btn';
-        btn.innerText = "Next Level";
-        btn.onclick = () => {
-            modal.classList.add('hidden');
-            startLevel(2);
-        };
-        action.appendChild(btn);
-    } else {
-        msg.innerText = "The Secret Gift is a HEATED BLANKET!";
-        let btn = document.createElement('button');
-        btn.className = 'primary-btn';
-        btn.innerText = "See Gift";
-        btn.onclick = () => modal.classList.add('hidden');
-        action.appendChild(btn);
-    }
+    // Find current word text
+    let wordText = gameStructure.find(i => i.id === currentTargetIndex).text;
+
+    msg.innerText = `You found "${wordText.toUpperCase()}"!`;
+    
+    let btn = document.createElement('button');
+    btn.className = 'primary-btn';
+    btn.innerText = "Next Word";
+    btn.onclick = () => {
+        modal.classList.add('hidden');
+        startLevel(currentTargetIndex + 1); // Go to next
+    };
+    action.appendChild(btn);
+}
+
+function handleGrandWin() {
+    const modal = document.getElementById('modal');
+    const title = document.getElementById('modal-title');
+    const msg = document.getElementById('modal-msg');
+    const action = document.getElementById('modal-next-action');
+
+    modal.classList.remove('hidden');
+    action.innerHTML = '';
+    
+    title.innerText = "COMPLETE!";
+    // Reconstruct full sentence
+    let fullSentence = gameStructure.map(i => i.text).join(' ');
+    
+    msg.innerText = `The message is:\n"${fullSentence}"`;
+    
+    let btn = document.createElement('button');
+    btn.className = 'primary-btn';
+    btn.innerText = "Close";
+    btn.onclick = () => modal.classList.add('hidden');
+    action.appendChild(btn);
+    
+    // Ensure the sentence display shows everything solved
+    currentTargetIndex = 999; 
+    renderSentence();
 }
 
 initGame();
