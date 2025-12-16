@@ -5,7 +5,6 @@ let currentLevel = 1;
 let targetWord = LEVEL_1_WORD;
 
 // --- State ---
-// Load dictionary from global var (words.js)
 let wordData = window.GAME_DICTIONARY || {}; 
 
 let currentInput = ""; 
@@ -27,11 +26,11 @@ const lastScoreDisplay = document.getElementById('last-score');
 
 // --- Init ---
 function initGame() {
+    createKeyboard(); // Load UI first
     if (!wordData || Object.keys(wordData).length === 0) {
         showToast("Error: words.js not loaded!");
         return;
     }
-    createKeyboard();
     startLevel(1);
 }
 
@@ -92,6 +91,7 @@ function submitGuess() {
     
     // Win Check
     if (guessPadded === targetWord) {
+        // Reveal everything for the win
         addHistoryRow(guessPadded, Array(10).fill('green'), score, true);
         handleWin();
         return;
@@ -100,7 +100,7 @@ function submitGuess() {
     // Calculate Colors
     const colors = calculateColors(guessPadded, targetWord);
     
-    // Select ONE new hint
+    // Select ONE new hint using STRICT PRIORITY
     selectNewHint(guessPadded, colors);
 
     // Render History
@@ -125,7 +125,8 @@ function submitGuess() {
 }
 
 function selectNewHint(guess, colors) {
-    let candidates = [];
+    let nonGreenCandidates = [];
+    let greenCandidates = [];
     
     for (let i = 0; i < 10; i++) {
         const char = guess[i];
@@ -133,27 +134,38 @@ function selectNewHint(guess, colors) {
         
         const color = colors[i];
         
-        // CANDIDATE LOGIC:
-        
-        // 1. If it's GREEN or YELLOW:
-        //    It is a candidate only if this specific POSITION hasn't been revealed yet.
-        if ((color === 'green' || color === 'yellow') && !revealedPositionalMask[i]) {
-            // Priority: Low for Green (1x), High for Yellow (10x)
-            let weight = (color === 'green') ? 1 : 10;
-            for(let w=0; w<weight; w++) candidates.push({ index: i, type: 'positional' });
+        // 1. YELLOW: Candidate if position is not yet revealed
+        if (color === 'yellow' && !revealedPositionalMask[i]) {
+            nonGreenCandidates.push({ index: i, type: 'positional' });
         }
         
-        // 2. If it's GREY:
-        //    It is a candidate only if this LETTER is not already known as Dead.
+        // 2. GREY: Candidate if letter is not yet marked dead
         else if (color === 'grey' && !revealedDeadLetters.has(char)) {
-             // Priority: High (10x)
-             for(let w=0; w<10; w++) candidates.push({ index: i, type: 'deadLetter', char: char });
+            nonGreenCandidates.push({ index: i, type: 'deadLetter', char: char });
+        }
+        
+        // 3. GREEN: Candidate if position is not yet revealed
+        else if (color === 'green' && !revealedPositionalMask[i]) {
+            greenCandidates.push({ index: i, type: 'positional' });
         }
     }
 
-    if (candidates.length > 0) {
-        const choice = candidates[Math.floor(Math.random() * candidates.length)];
-        
+    // STRICT SELECTION LOGIC
+    // If there are ANY yellow/grey options, we MUST pick one of them.
+    // We only pick Green if the nonGreen list is empty.
+    
+    let choice = null;
+
+    if (nonGreenCandidates.length > 0) {
+        const r = Math.floor(Math.random() * nonGreenCandidates.length);
+        choice = nonGreenCandidates[r];
+    } else if (greenCandidates.length > 0) {
+        const r = Math.floor(Math.random() * greenCandidates.length);
+        choice = greenCandidates[r];
+    }
+
+    // Apply the choice
+    if (choice) {
         if (choice.type === 'positional') {
             revealedPositionalMask[choice.index] = true;
         } else if (choice.type === 'deadLetter') {
@@ -217,20 +229,20 @@ function addHistoryRow(word, colors, score, isWin) {
         if (char !== ' ') div.innerText = char;
 
         // DISPLAY LOGIC:
-        // 1. If it's a WIN, show everything.
-        // 2. If it's Green/Yellow AND we revealed this position -> Show Color.
-        // 3. If it's Grey AND we revealed this letter as dead -> Show Grey.
-        
         let color = colors[i];
         let showColor = false;
 
         if (isWin) {
             showColor = true;
         } else {
-            if (color === 'green' || color === 'yellow') {
-                if (revealedPositionalMask[i]) showColor = true;
-            } else if (color === 'grey') {
-                if (revealedDeadLetters.has(char)) showColor = true;
+            // Positional Logic (Green/Yellow)
+            if ((color === 'green' || color === 'yellow') && revealedPositionalMask[i]) {
+                showColor = true;
+            }
+            // Dead Letter Logic (Grey)
+            // If the letter is dead, show Grey on ALL instances of that letter in this row
+            else if (color === 'grey' && revealedDeadLetters.has(char)) {
+                showColor = true;
             }
         }
 
@@ -284,7 +296,6 @@ function createKeyboard() {
 }
 
 function updateKeyboard(word, colors) {
-    // Iterate through the word letters
     for(let i=0; i<10; i++) {
         let char = word[i];
         if (char === ' ') continue;
@@ -293,17 +304,15 @@ function updateKeyboard(word, colors) {
         let btn = document.getElementById('key-'+char);
         if(!btn) continue;
 
-        // KEYBOARD COLOR LOGIC:
-        // We only color the keyboard if the user has "unlocked" that info.
-        
         let shouldUpdate = false;
         
-        if (color === 'green' || color === 'yellow') {
-            // Only update if we know the position (which implies we know the letter exists)
-            if (revealedPositionalMask[i]) shouldUpdate = true;
-        } else if (color === 'grey') {
-            // Only update if we know the letter is dead
-            if (revealedDeadLetters.has(char)) shouldUpdate = true;
+        // Update if we know the position (Yellow/Green)
+        if ((color === 'green' || color === 'yellow') && revealedPositionalMask[i]) {
+            shouldUpdate = true;
+        } 
+        // Update if we know the letter is dead (Grey)
+        else if (color === 'grey' && revealedDeadLetters.has(char)) {
+            shouldUpdate = true;
         }
 
         if (shouldUpdate) {
@@ -373,5 +382,4 @@ function handleWin() {
     }
 }
 
-// Start
 initGame();
