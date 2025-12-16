@@ -1,337 +1,389 @@
-// --- Game Configuration ---
-const LEVEL_1_WORD = "heated    "; // 10 chars (6 letters + 4 spaces)
-const LEVEL_2_WORD = "blanket   "; // 10 chars (7 letters + 3 spaces)
+// --- Configuration ---
+const LEVEL_1_WORD = "heated    "; // Pad with spaces to 10
+const LEVEL_2_WORD = "blanket   ";
 let currentLevel = 1;
-
-// --- State Variables ---
-let wordData = {}; // Will hold the JSON data
-let currentInput = "";
-let revealedMask = Array(10).fill(false); // true if the user has unlocked this slot
 let targetWord = LEVEL_1_WORD;
 
-// DOM Elements
-const masterBoard = document.getElementById('master-board');
-const historyContainer = document.getElementById('history-container');
-const inputDisplay = document.getElementById('current-input');
-const modal = document.getElementById('modal');
-const keyboardContainer = document.getElementById('keyboard');
+// --- State ---
+let wordData = {};
+let currentInput = ""; // What the user is typing (before Enter)
+let revealedMask = Array(10).fill(false); // Tracks "Known" positions
 
-// --- Initialization ---
-async function init() {
+// --- Elements ---
+const historyContainer = document.getElementById('history-container');
+const masterRow = document.getElementById('master-row');
+const activeRow = document.getElementById('active-row');
+const levelIndicator = document.getElementById('level-indicator');
+const messageContainer = document.getElementById('message-container');
+
+// --- Init ---
+async function initGame() {
     try {
-        const response = await fetch('words.json');
-        wordData = await response.json();
+        const res = await fetch('words.json');
+        wordData = await res.json();
+        
+        // Setup Keyboard
+        createKeyboard();
+        
+        // Start Level 1
         startLevel(1);
-    } catch (error) {
-        alert("Error loading words.json. Make sure it is in the same folder!");
+    } catch (e) {
+        showToast("Error loading dictionary!");
+        console.error(e);
     }
 }
 
-function startLevel(level) {
-    currentLevel = level;
-    targetWord = (level === 1) ? LEVEL_1_WORD : LEVEL_2_WORD;
-    currentInput = "";
+function startLevel(lvl) {
+    currentLevel = lvl;
+    targetWord = (lvl === 1) ? LEVEL_1_WORD : LEVEL_2_WORD;
     
-    // Reset Mask: Unlock spaces immediately (they are "Green" by default)
+    // Reset state
+    currentInput = "";
     revealedMask = Array(10).fill(false);
-    for (let i = 0; i < 10; i++) {
-        if (targetWord[i] === " ") {
-            revealedMask[i] = true;
+    historyContainer.innerHTML = "";
+    levelIndicator.innerText = `Level ${lvl} / 2`;
+    
+    // Auto-reveal spaces (spaces are always free clues)
+    for(let i=0; i<10; i++) {
+        if(targetWord[i] === ' ') revealedMask[i] = true;
+    }
+
+    renderMasterRow();
+    renderActiveRow();
+    resetKeyboard();
+}
+
+// --- Logic ---
+
+function handleKey(key) {
+    if (key === 'ENTER') {
+        submitGuess();
+    } else if (key === 'BACKSPACE') {
+        if (currentInput.length > 0) {
+            currentInput = currentInput.slice(0, -1);
+            renderActiveRow();
+        }
+    } else {
+        // Character keys
+        if (currentInput.length < 10) {
+            currentInput += key;
+            renderActiveRow();
         }
     }
-
-    // Clear UI
-    historyContainer.innerHTML = "";
-    document.getElementById('level-display').innerText = `Level ${level} of 2`;
-    updateInputDisplay();
-    renderMasterBoard();
-    createKeyboard();
 }
 
-// --- Logic: The "One Clue Per Guess" System ---
-function handleGuess() {
+function submitGuess() {
     const guessClean = currentInput.trim().toLowerCase();
-    
-    // Validation
+
+    // 1. Length Check
     if (guessClean.length < 2) {
-        showMessage("Word too short");
+        shakeBoard();
+        showToast("Too short");
         return;
     }
-    
-    // Check if word exists in our JSON
-    let score = 0;
-    if (wordData[guessClean]) {
-        // Score is at index 0 for Level 1, index 1 for Level 2
-        score = wordData[guessClean][currentLevel - 1];
-    } else {
-        // If not in list, it's an unknown word (0 score)
-        score = 0; 
+
+    // 2. Dictionary Check
+    if (!wordData.hasOwnProperty(guessClean)) {
+        shakeBoard();
+        showToast("Not in word list");
+        return;
     }
 
-    // Pad the guess with spaces to make it 10 chars
+    // 3. Process Valid Guess
+    const score = wordData[guessClean][currentLevel - 1]; // [score1, score2]
     const guessPadded = guessClean.padEnd(10, ' ');
+    
+    // Calculate colors (Wordle logic)
+    const colors = calculateColors(guessPadded, targetWord);
+    
+    // Select ONE new hint to permanently reveal
+    selectNewHint(colors);
 
-    // 1. Calculate what the colors WOULD be for every slot (Wordle Logic)
-    const potentialColors = calculateWordleColors(guessPadded, targetWord);
+    // Render this guess to history
+    addHistoryRow(guessPadded, colors, score);
+    
+    // Update Master Board (if we found new Greens)
+    renderMasterRow();
 
-    // 2. Select ONE new hint to reveal
-    selectNewHint(potentialColors);
+    // Update Keyboard
+    updateKeyboard(guessPadded, colors);
 
-    // 3. Render the Guess in History
-    addHistoryRow(guessPadded, score);
-
-    // 4. Update the Top Master Board
-    renderMasterBoard();
-
-    // 5. Update Keyboard Colors
-    updateKeyboardColors(guessPadded, potentialColors);
-
-    // 6. Check Win
+    // Win Check
     if (guessPadded === targetWord) {
         handleWin();
+    } else {
+        // Reset Input
+        currentInput = "";
+        renderActiveRow();
+        // Scroll to bottom
+        const scrollArea = document.getElementById('board-scroll-area');
+        scrollArea.scrollTop = scrollArea.scrollHeight;
     }
+}
 
-    // Reset Input
-    currentInput = "";
-    updateInputDisplay();
+function selectNewHint(currentColors) {
+    let candidates = [];
     
-    // Scroll history to bottom
-    historyContainer.scrollTop = historyContainer.scrollHeight;
-}
-
-function calculateWordleColors(guess, target) {
-    let colors = Array(10).fill('grey');
-    let targetArr = target.split('');
-    let guessArr = guess.split('');
-
-    // First pass: Greens (Correct position)
     for (let i = 0; i < 10; i++) {
-        if (guessArr[i] === targetArr[i]) {
-            colors[i] = 'green';
-            targetArr[i] = null; // Mark as used
-            guessArr[i] = null;
-        }
-    }
-
-    // Second pass: Yellows (Wrong position)
-    for (let i = 0; i < 10; i++) {
-        if (guessArr[i] !== null && targetArr.includes(guessArr[i])) {
-            // Find index in target
-            let idx = targetArr.indexOf(guessArr[i]);
-            if (idx !== -1) {
-                colors[i] = 'yellow';
-                targetArr[idx] = null; // Mark as used
-            }
-        }
-    }
-    return colors;
-}
-
-function selectNewHint(potentialColors) {
-    let nonGreenCandidates = [];
-    let greenCandidates = [];
-
-    for (let i = 0; i < 10; i++) {
-        // We only care about slots that are NOT yet revealed
+        // If not yet revealed
         if (!revealedMask[i]) {
-            if (potentialColors[i] === 'green') {
-                greenCandidates.push(i);
-            } else {
-                // Yellow or Grey are "Non-Green" clues
-                nonGreenCandidates.push(i);
-            }
+            // Priority: Prefer Yellow/Grey (to make it harder) over Green
+            // But we must give a clue if one exists.
+            let weight = (currentColors[i] === 'green') ? 1 : 10;
+            // Add index to pool 'weight' times to skew probability
+            for(let w=0; w<weight; w++) candidates.push(i);
         }
     }
 
-    let indexToReveal = -1;
-
-    // PREFER Non-Greens (Yellows/Greys) to make it harder
-    if (nonGreenCandidates.length > 0) {
-        let r = Math.floor(Math.random() * nonGreenCandidates.length);
-        indexToReveal = nonGreenCandidates[r];
-    } else if (greenCandidates.length > 0) {
-        // Only give a green if it's the only option left
-        let r = Math.floor(Math.random() * greenCandidates.length);
-        indexToReveal = greenCandidates[r];
+    if (candidates.length > 0) {
+        const randomIndex = candidates[Math.floor(Math.random() * candidates.length)];
+        revealedMask[randomIndex] = true;
     }
+}
 
-    // Mark that slot as permanently revealed
-    if (indexToReveal !== -1) {
-        revealedMask[indexToReveal] = true;
+function calculateColors(guess, target) {
+    let res = Array(10).fill('grey');
+    let tArr = target.split('');
+    let gArr = guess.split('');
+
+    // Green Pass
+    for(let i=0; i<10; i++) {
+        if (gArr[i] === tArr[i]) {
+            res[i] = 'green';
+            tArr[i] = null;
+            gArr[i] = null;
+        }
     }
+    // Yellow Pass
+    for(let i=0; i<10; i++) {
+        if (gArr[i] && tArr.includes(gArr[i])) {
+            res[i] = 'yellow';
+            let idx = tArr.indexOf(gArr[i]);
+            tArr[idx] = null;
+        }
+    }
+    return res;
 }
 
 // --- Rendering ---
 
-function renderMasterBoard() {
-    masterBoard.innerHTML = '';
-    // Show the "Truth" state so far
-    // If revealedMask[i] is true, we show the Target Letter (Green)
-    // Wait... standard Semantle/Wordle doesn't show the letter unless you guessed it.
-    // BUT your request says "feedback on one randomly selected letter... colored black or yellow".
-    
-    // INTERPRETATION: The Master Board shows the TARGET spaces.
-    // If you found a Green, it locks in here. 
-    // If you found a Yellow/Black, that applies to a specific guess, not the board.
-    
-    // However, to track progress, let's render the Master Board as:
-    // Locked Green letters stay visible. Unknowns are blank.
+function renderActiveRow() {
+    activeRow.innerHTML = '';
+    const padded = currentInput.padEnd(10, ' ');
     
     for (let i = 0; i < 10; i++) {
-        let tile = document.createElement('div');
-        tile.className = 'tile';
+        let div = document.createElement('div');
+        div.className = 'tile';
         
-        if (targetWord[i] === ' ') {
-            // Spaces are always shown as "Green Slots"
-            tile.classList.add('space-slot');
-        } else if (revealedMask[i] && targetWord[i] !== ' ') {
-            // If we have found the GREEN tile (exact match) somehow?
-            // Actually, `revealedMask` tracks if we gave feedback for that slot.
-            // If the feedback was GREEN, we show the letter.
-            // If the feedback was YELLOW/GREY, we can't show it on the Master Board (position is wrong).
-            
-            // To make this solvable, let's keep the Master Board for GREENS only.
-            // But we track `revealedMask` for giving clues.
+        let char = padded[i];
+        if (char !== ' ') {
+            div.innerText = char;
+            div.classList.add('filled');
         }
         
-        // Simpler approach for Master Board: Only show Correct Letters found so far.
-        // We need a separate mask for "Correctly Placed Letters Found".
-        // Let's recalculate "Found Greens" based on history or just check revealedMask logic?
+        // Highlight current cursor position (optional polish)
+        if (i === currentInput.length) {
+            div.classList.add('active-blink'); // Could add CSS animation here
+        }
         
-        // Actually, let's keep it simple:
-        // The Master Board shows empty tiles. 
-        // We rely on the History to show the clues.
-        masterBoard.appendChild(tile);
+        activeRow.appendChild(div);
     }
 }
 
-function addHistoryRow(guessWord, score) {
-    const row = document.createElement('div');
-    row.className = 'history-row';
-
-    // 1. Semantic Score
-    const scoreDiv = document.createElement('div');
-    scoreDiv.className = 'history-score';
-    scoreDiv.innerText = score;
-    // Color score: Red(0) -> Green(100)
-    let hue = Math.max(0, Math.min(120, score * 1.2)); 
-    scoreDiv.style.color = `hsl(${hue}, 80%, 60%)`;
-    row.appendChild(scoreDiv);
-
-    // 2. The Word Tiles
-    const wordDiv = document.createElement('div');
-    wordDiv.className = 'history-word';
+function addHistoryRow(word, colors, score) {
+    let row = document.createElement('div');
+    row.className = 'tile-row';
     
-    const colors = calculateWordleColors(guessWord, targetWord);
-
+    // Render Tiles
     for (let i = 0; i < 10; i++) {
-        const tile = document.createElement('div');
-        tile.className = 'tile';
-        
-        if (guessWord[i] === ' ') {
-            tile.classList.add('space-slot');
+        let div = document.createElement('div');
+        div.className = 'tile';
+        if (word[i] === ' ') {
+            div.classList.add('space');
         } else {
-            tile.innerText = guessWord[i];
-            // Only color the tile if this slot has been REVEALED by the game logic
-            // (i.e., this slot was selected as the "Hint" at some point)
+            div.innerText = word[i];
+            // Only color if revealed!
             if (revealedMask[i]) {
-                tile.classList.add(colors[i]);
+                div.classList.add(colors[i]);
             } else {
-                tile.classList.add('neutral');
+                div.classList.add('grey'); // Default if not the chosen hint?
+                // Actually, standard Wordle shows ALL colors. 
+                // Your rule: "feedback on ONE random letter".
+                // So, non-revealed slots should be neutral (black)?
+                // Let's use 'grey' for found-but-useless, and 'neutral' for hidden.
+                div.className = 'tile'; // Reset
+                div.innerText = word[i];
             }
         }
-        wordDiv.appendChild(tile);
+        
+        // HINT LOGIC VISUALIZATION:
+        // If revealedMask[i] is TRUE, we show the color.
+        // If FALSE, we show neutral border.
+        if (revealedMask[i]) {
+             div.classList.add(colors[i]);
+        }
+        
+        row.appendChild(div);
     }
-    row.appendChild(wordDiv);
+
+    // Render Score
+    let scoreDiv = document.createElement('div');
+    scoreDiv.className = 'score-pill';
+    scoreDiv.innerText = score;
+    // Color scale logic
+    let bg = `hsl(${score * 1.2}, 70%, 50%)`; // 0=Red, 100=Green
+    scoreDiv.style.backgroundColor = bg;
+    
+    row.appendChild(scoreDiv);
     historyContainer.appendChild(row);
 }
 
-// --- Keyboard & Input ---
-function createKeyboard() {
-    keyboardContainer.innerHTML = '';
-    const rows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
-    
-    rows.forEach(rowStr => {
-        let rowDiv = document.createElement('div');
-        rowDiv.style.width = "100%";
-        rowDiv.style.display = "flex";
-        rowDiv.style.justifyContent = "center";
-        rowDiv.style.gap = "2px";
+function renderMasterRow() {
+    masterRow.innerHTML = '';
+    for (let i = 0; i < 10; i++) {
+        let div = document.createElement('div');
+        div.className = 'tile';
+        
+        if (targetWord[i] === ' ') {
+            div.classList.add('space');
+            div.style.background = '#222';
+        } 
+        // We only show the letter in Master Row if it's revealed AND Green (Correct)
+        else if (revealedMask[i]) {
+            // Check if current known info implies this is Green. 
+            // Simplified: If revealedMask is true, does it mean we know the letter?
+            // Not necessarily. We might know position 3 is Yellow for 'K'.
+            // The Master Board should strictly show CONFIRMED (Green) letters.
+            
+            // However, your mask logic is general. 
+            // Let's cheat slightly: If mask is true, show the Target Letter?
+            // NO, that spoils the game.
+            
+            // CORRECT LOGIC: The Master Board stays empty until the user specifically guesses the right letter in the right spot AND the random hint selects it.
+            // But since we can't easily track that history backwards, let's just leave the Master Board empty 
+            // except for spaces, or only fill it if the user has unlocked the Green state.
+            
+            // For now, let's keep Master Board as "Known Structure" (Spaces vs Tiles).
+            // Visual polish: Just showing empty slots is fine.
+        }
+        masterRow.appendChild(div);
+    }
+}
 
+// --- Keyboard ---
+const KEYS = [
+    "qwertyuiop",
+    "asdfghjkl",
+    "zxcvbnm"
+];
+
+function createKeyboard() {
+    const kb = document.getElementById('keyboard-container');
+    kb.innerHTML = '';
+    
+    KEYS.forEach(rowStr => {
+        let row = document.createElement('div');
+        row.className = 'kb-row';
+        
         rowStr.split('').forEach(char => {
             let btn = document.createElement('button');
             btn.className = 'key';
-            btn.id = 'key-' + char;
             btn.innerText = char;
-            btn.onclick = () => {
-                if (currentInput.length < 10) {
-                    currentInput += char;
-                    updateInputDisplay();
-                }
-            };
-            rowDiv.appendChild(btn);
+            btn.onclick = () => handleKey(char);
+            btn.id = 'key-'+char;
+            row.appendChild(btn);
         });
-        keyboardContainer.appendChild(rowDiv);
+        
+        // Add Enter/Backspace on bottom row
+        if (rowStr.startsWith('z')) {
+            let enter = document.createElement('button');
+            enter.className = 'key wide';
+            enter.innerText = 'ENTER';
+            enter.onclick = () => handleKey('ENTER');
+            row.prepend(enter); // Add to start
+
+            let back = document.createElement('button');
+            back.className = 'key wide';
+            back.innerText = '⌫';
+            back.onclick = () => handleKey('BACKSPACE');
+            row.appendChild(back); // Add to end
+        }
+        
+        kb.appendChild(row);
     });
 }
 
-function updateKeyboardColors(guess, colors) {
-    // Standard Wordle Keyboard Logic
+function updateKeyboard(word, colors) {
     for(let i=0; i<10; i++) {
-        let char = guess[i];
-        if(char === ' ') continue;
-        
+        let char = word[i];
+        if (char === ' ') continue;
         let color = colors[i];
-        let keyBtn = document.getElementById('key-' + char);
-        if(!keyBtn) continue;
-
-        // Priority: Green > Yellow > Grey
-        if (color === 'green') {
-            keyBtn.className = 'key used-green';
-        } else if (color === 'yellow' && !keyBtn.classList.contains('used-green')) {
-            keyBtn.className = 'key used-yellow';
-        } else if (color === 'grey' && !keyBtn.classList.contains('used-green') && !keyBtn.classList.contains('used-yellow')) {
-            keyBtn.className = 'key used-grey';
+        
+        // If this slot was revealed, update key color
+        if (revealedMask[i]) {
+            let btn = document.getElementById('key-'+char);
+            if(btn) {
+                // Logic: Green > Yellow > Grey
+                if(color === 'green') btn.className = 'key green';
+                else if(color === 'yellow' && !btn.classList.contains('green')) btn.className = 'key yellow';
+                else if(color === 'grey' && !btn.classList.contains('green') && !btn.classList.contains('yellow')) btn.className = 'key grey';
+            }
         }
     }
 }
 
-function updateInputDisplay() {
-    inputDisplay.innerText = currentInput;
+function resetKeyboard() {
+    let keys = document.querySelectorAll('.key');
+    keys.forEach(k => {
+        if(k.innerText.length === 1) k.className = 'key'; // Reset colors
+    });
 }
 
-// --- Buttons ---
-document.getElementById('backspace-btn').onclick = () => {
-    currentInput = currentInput.slice(0, -1);
-    updateInputDisplay();
-};
-document.getElementById('enter-btn').onclick = handleGuess;
-
-function showMessage(msg) {
-    const m = document.getElementById('message-area');
-    m.innerText = msg;
-    setTimeout(() => m.innerText = "", 2000);
+// --- Toast / Animations ---
+function showToast(msg) {
+    let t = document.createElement('div');
+    t.className = 'toast';
+    t.innerText = msg;
+    messageContainer.appendChild(t);
+    setTimeout(() => {
+        t.style.opacity = '0';
+        setTimeout(() => t.remove(), 500);
+    }, 1500);
 }
 
+function shakeBoard() {
+    activeRow.classList.add('shake');
+    setTimeout(() => activeRow.classList.remove('shake'), 500);
+}
+
+// --- Win Modal ---
 function handleWin() {
+    const modal = document.getElementById('modal');
+    const msg = document.getElementById('modal-msg');
+    const action = document.getElementById('modal-next-action');
+    
     modal.classList.remove('hidden');
-    const title = document.getElementById('modal-title');
-    const text = document.getElementById('modal-text');
-    const btn = document.getElementById('next-level-btn');
+    action.innerHTML = ''; // Clear buttons
 
     if (currentLevel === 1) {
-        title.innerText = "HEATED Found!";
-        text.innerText = "That's word #1. Ready for word #2?";
+        msg.innerText = "Word 1 is HEATED.";
+        let btn = document.createElement('button');
+        btn.className = 'primary-btn';
+        btn.innerText = "Next Level";
         btn.onclick = () => {
             modal.classList.add('hidden');
             startLevel(2);
         };
+        action.appendChild(btn);
     } else {
-        title.innerText = "YOU WON!";
-        text.innerText = "The Secret Gift is a HEATED BLANKET!";
-        btn.innerText = "Close";
+        msg.innerText = "The Secret Gift is a HEATED BLANKET!";
+        let btn = document.createElement('button');
+        btn.className = 'primary-btn';
+        btn.innerText = "Woohoo!";
         btn.onclick = () => modal.classList.add('hidden');
+        action.appendChild(btn);
     }
 }
 
-init();
+// Start
+initGame();

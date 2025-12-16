@@ -3,47 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>The Secret Gift</title>
+    <title>Secret Gift</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div class="game-container">
         <header>
-            <h1>The Secret Gift</h1>
-            <div id="level-display">Level 1 of 2</div>
+            <h1>SECRET GIFT</h1>
+            <div id="level-indicator">Level 1 / 2</div>
         </header>
 
-        <div class="master-clues-container">
-            <p class="section-label">KNOWN CLUES</p>
-            <div id="master-board" class="row">
+        <div class="master-container">
+            <span class="label">KNOWN:</span>
+            <div id="master-row" class="tile-row master"></div>
+        </div>
+
+        <div id="board-scroll-area">
+            <div id="history-container">
                 </div>
         </div>
 
-        <div id="history-container">
-            </div>
-
-        <div class="input-area">
-            <div id="current-input" class="input-display"></div>
-            <div class="semantic-preview" id="semantic-preview">Score: -</div>
+        <div class="active-row-container">
+            <div id="active-row" class="tile-row">
+                </div>
         </div>
 
-        <div id="keyboard"></div>
-        
-        <div class="action-buttons">
-            <button id="enter-btn">ENTER</button>
-            <button id="backspace-btn">⌫</button>
-        </div>
-        
-        <div id="message-area"></div>
+        <div id="message-container"></div>
+
+        <div id="keyboard-container"></div>
     </div>
 
     <div id="modal" class="modal hidden">
         <div class="modal-content">
-            <h2 id="modal-title">Correct!</h2>
-            <p id="modal-text"></p>
-            <button id="next-level-btn">Next Level</button>
+            <h2 id="modal-title">Solved!</h2>
+            <p id="modal-msg"></p>
+            <div id="modal-next-action"></div>
         </div>
     </div>
 
