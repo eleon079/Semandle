@@ -1,14 +1,22 @@
 // --- Configuration ---
-const LEVEL_1_WORD = "heated    "; 
-const LEVEL_2_WORD = "blanket   ";
+const LEVEL_1_WORD = "heated    "; // 6 letters + 4 spaces
+const LEVEL_2_WORD = "blanket   "; // 7 letters + 3 spaces
 let currentLevel = 1;
 let targetWord = LEVEL_1_WORD;
 
 // --- State ---
-// We simply point to the global variable loaded from words.js
+// Load dictionary from global var (words.js)
 let wordData = window.GAME_DICTIONARY || {}; 
+
 let currentInput = ""; 
-let revealedMask = Array(10).fill(false); 
+
+// STATE 1: Positional Hints (Yellow/Green)
+// true means "We have revealed the color of the tile at this index"
+let revealedPositionalMask = Array(10).fill(false); 
+
+// STATE 2: Dead Letter Hints (Grey)
+// A set of characters that we have revealed as "Not in word"
+let revealedDeadLetters = new Set();
 
 // --- Elements ---
 const historyContainer = document.getElementById('history-container');
@@ -19,16 +27,11 @@ const lastScoreDisplay = document.getElementById('last-score');
 
 // --- Init ---
 function initGame() {
-    // 1. Draw the keyboard immediately (so UI looks broken, not empty)
-    createKeyboard();
-
-    // 2. Check if dictionary loaded
     if (!wordData || Object.keys(wordData).length === 0) {
         showToast("Error: words.js not loaded!");
-        return; // Stops here if file is missing
+        return;
     }
-    
-    // 3. Start the game if data exists
+    createKeyboard();
     startLevel(1);
 }
 
@@ -38,7 +41,8 @@ function startLevel(lvl) {
     
     // Reset state
     currentInput = "";
-    revealedMask = Array(10).fill(false);
+    revealedPositionalMask = Array(10).fill(false);
+    revealedDeadLetters = new Set();
     historyContainer.innerHTML = "";
     levelIndicator.innerText = `Level ${lvl} / 2`;
     lastScoreDisplay.classList.add('hidden');
@@ -96,16 +100,16 @@ function submitGuess() {
     // Calculate Colors
     const colors = calculateColors(guessPadded, targetWord);
     
-    // Select ONE new hint to permanently reveal
-    selectNewHint(colors);
+    // Select ONE new hint
+    selectNewHint(guessPadded, colors);
 
     // Render History
     addHistoryRow(guessPadded, colors, score, false);
     
-    // Update Keyboard based on what was revealed
+    // Update Keyboard
     updateKeyboard(guessPadded, colors);
 
-    // Update Score
+    // Update Score UI
     lastScoreDisplay.innerText = `Score: ${score}`;
     lastScoreDisplay.classList.remove('hidden');
     let hue = Math.max(0, Math.min(120, score * 1.2));
@@ -120,21 +124,41 @@ function submitGuess() {
     scrollArea.scrollTop = scrollArea.scrollHeight;
 }
 
-function selectNewHint(currentColors) {
+function selectNewHint(guess, colors) {
     let candidates = [];
     
     for (let i = 0; i < 10; i++) {
-        // Condition: Not revealed AND not a space
-        if (!revealedMask[i] && targetWord[i] !== ' ') {
-            // Bias: Prefer Non-Green (10x) over Green (1x)
-            let weight = (currentColors[i] === 'green') ? 1 : 10;
-            for(let w=0; w<weight; w++) candidates.push(i);
+        const char = guess[i];
+        if (char === ' ') continue; // Never give hints on spaces
+        
+        const color = colors[i];
+        
+        // CANDIDATE LOGIC:
+        
+        // 1. If it's GREEN or YELLOW:
+        //    It is a candidate only if this specific POSITION hasn't been revealed yet.
+        if ((color === 'green' || color === 'yellow') && !revealedPositionalMask[i]) {
+            // Priority: Low for Green (1x), High for Yellow (10x)
+            let weight = (color === 'green') ? 1 : 10;
+            for(let w=0; w<weight; w++) candidates.push({ index: i, type: 'positional' });
+        }
+        
+        // 2. If it's GREY:
+        //    It is a candidate only if this LETTER is not already known as Dead.
+        else if (color === 'grey' && !revealedDeadLetters.has(char)) {
+             // Priority: High (10x)
+             for(let w=0; w<10; w++) candidates.push({ index: i, type: 'deadLetter', char: char });
         }
     }
 
     if (candidates.length > 0) {
-        const randomIndex = candidates[Math.floor(Math.random() * candidates.length)];
-        revealedMask[randomIndex] = true;
+        const choice = candidates[Math.floor(Math.random() * candidates.length)];
+        
+        if (choice.type === 'positional') {
+            revealedPositionalMask[choice.index] = true;
+        } else if (choice.type === 'deadLetter') {
+            revealedDeadLetters.add(choice.char);
+        }
     }
 }
 
@@ -188,13 +212,30 @@ function addHistoryRow(word, colors, score, isWin) {
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
+        let char = word[i];
         
-        if (word[i] !== ' ') {
-            div.innerText = word[i];
+        if (char !== ' ') div.innerText = char;
+
+        // DISPLAY LOGIC:
+        // 1. If it's a WIN, show everything.
+        // 2. If it's Green/Yellow AND we revealed this position -> Show Color.
+        // 3. If it's Grey AND we revealed this letter as dead -> Show Grey.
+        
+        let color = colors[i];
+        let showColor = false;
+
+        if (isWin) {
+            showColor = true;
+        } else {
+            if (color === 'green' || color === 'yellow') {
+                if (revealedPositionalMask[i]) showColor = true;
+            } else if (color === 'grey') {
+                if (revealedDeadLetters.has(char)) showColor = true;
+            }
         }
 
-        if (isWin || revealedMask[i]) {
-            div.classList.add(colors[i]);
+        if (showColor) {
+            div.classList.add(color);
         }
         
         row.appendChild(div);
@@ -205,7 +246,6 @@ function addHistoryRow(word, colors, score, isWin) {
     scoreDiv.innerText = score;
     let bg = `hsl(${score * 1.2}, 70%, 50%)`; 
     scoreDiv.style.backgroundColor = bg;
-    
     row.appendChild(scoreDiv);
     historyContainer.appendChild(row);
 }
@@ -216,11 +256,9 @@ const KEYS = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
 function createKeyboard() {
     const kb = document.getElementById('keyboard-container');
     kb.innerHTML = '';
-    
     KEYS.forEach(rowStr => {
         let row = document.createElement('div');
         row.className = 'kb-row';
-        
         rowStr.split('').forEach(char => {
             let btn = document.createElement('button');
             btn.className = 'key';
@@ -229,14 +267,12 @@ function createKeyboard() {
             btn.id = 'key-'+char;
             row.appendChild(btn);
         });
-        
         if (rowStr.startsWith('z')) {
             let enter = document.createElement('button');
             enter.className = 'key wide';
             enter.innerText = 'ENTER';
             enter.onclick = () => handleKey('ENTER');
             row.prepend(enter);
-
             let back = document.createElement('button');
             back.className = 'key wide';
             back.innerText = '⌫';
@@ -248,24 +284,38 @@ function createKeyboard() {
 }
 
 function updateKeyboard(word, colors) {
+    // Iterate through the word letters
     for(let i=0; i<10; i++) {
         let char = word[i];
         if (char === ' ') continue;
         
-        if (revealedMask[i]) {
-            let color = colors[i];
-            let btn = document.getElementById('key-'+char);
-            if(btn) {
-                let currentClass = btn.className;
-                if (color === 'green') {
-                    btn.className = 'key green';
-                } 
-                else if (color === 'yellow' && !currentClass.includes('green')) {
-                    btn.className = 'key yellow';
-                } 
-                else if (color === 'grey' && !currentClass.includes('green') && !currentClass.includes('yellow')) {
-                    btn.className = 'key grey';
-                }
+        let color = colors[i];
+        let btn = document.getElementById('key-'+char);
+        if(!btn) continue;
+
+        // KEYBOARD COLOR LOGIC:
+        // We only color the keyboard if the user has "unlocked" that info.
+        
+        let shouldUpdate = false;
+        
+        if (color === 'green' || color === 'yellow') {
+            // Only update if we know the position (which implies we know the letter exists)
+            if (revealedPositionalMask[i]) shouldUpdate = true;
+        } else if (color === 'grey') {
+            // Only update if we know the letter is dead
+            if (revealedDeadLetters.has(char)) shouldUpdate = true;
+        }
+
+        if (shouldUpdate) {
+            let currentClass = btn.className;
+            if (color === 'green') {
+                btn.className = 'key green';
+            } 
+            else if (color === 'yellow' && !currentClass.includes('green')) {
+                btn.className = 'key yellow';
+            } 
+            else if (color === 'grey' && !currentClass.includes('green') && !currentClass.includes('yellow')) {
+                btn.className = 'key grey';
             }
         }
     }
