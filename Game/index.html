@@ -9,13 +9,23 @@
 </head>
 <body>
 
+    <div id="loading-screen">
+        <div class="loader-content">
+            <h2>Loading Dictionary...</h2>
+            <p>This may take a few seconds.</p>
+        </div>
+    </div>
+
     <div class="game-container">
         <header>
-            <div class="header-left">
-                <h1>SECRET GIFT</h1>
-                <div id="level-indicator">Level 1 / 2</div>
+            <div id="sentence-container">
+                <div id="sentence-display"></div>
             </div>
-            <div id="last-score" class="score-preview hidden"></div>
+            
+            <div class="status-bar">
+                <div id="level-indicator">Initializing...</div>
+                <div id="last-score" class="score-preview hidden"></div>
+            </div>
         </header>
 
         <div id="board-scroll-area">
@@ -27,6 +37,7 @@
         </div>
 
         <div id="message-container"></div>
+
         <div id="keyboard-container"></div>
     </div>
 
