@@ -62,10 +62,12 @@ function startLevel(targetId) {
     
     // Auto-reveal spaces in the target word (if any)
     // We pad the target word to 10 chars for the grid logic
-    let targetWordPadded = nextTarget.text.toLowerCase().padEnd(10, ' ');
-    for(let i=0; i<10; i++) {
-        if(targetWordPadded[i] === ' ') revealedPositionalMask[i] = true;
-    }
+
+    // REMOVED THE BELOW ------------------------------------------------
+    //let targetWordPadded = nextTarget.text.toLowerCase().padEnd(10, ' ');
+    //for(let i=0; i<10; i++) {
+    //    if(targetWordPadded[i] === ' ') revealedPositionalMask[i] = true;
+    //}
 
     // Update UI
     renderSentence();

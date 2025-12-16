@@ -4,7 +4,7 @@ import requests
 import sys
 
 # --- CONFIGURATION ---
-SECRET_SENTENCE = "Your secret christmas present for when I'm not there to do the job: Heated Blanket!" 
+SECRET_SENTENCE = "A synthetic Christmas substitute commissioned to replicate my body warmth while I am absent: Heated Blanket!"
 
 def generate_data():
     print("1. Loading Language Model... (approx 10-20 seconds)")
@@ -68,7 +68,7 @@ def generate_data():
     # If Spacy doesn't have a vector for it, we skip it.
     
     count = 0
-    max_words = 60000 # Limit to keep file size reasonable for mobile (approx 1.5MB)
+    max_words = 600000 # Limit to keep file size reasonable for mobile (approx 1.5MB)
     
     # Use a set to avoid duplicates
     processed_words = set()
