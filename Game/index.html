@@ -4,15 +4,131 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Secret Gift</title>
-    <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green: #538d4e;
+            --yellow: #b59f3b;
+            --grey: #3a3a3c;
+            --black: #121213;
+            --white: #ffffff;
+            --border: #565758;
+        }
+        * { box-sizing: border-box; user-select: none; }
+        body {
+            background-color: var(--black); color: var(--white);
+            font-family: 'Nunito', sans-serif; margin: 0;
+            height: 100dvh; width: 100%; overflow: hidden; position: fixed;
+        }
+
+        /* --- LOADING SCREEN --- */
+        #loading-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--black); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .loader-content { text-align: center; }
+        .loader-content p { color: #888; margin-top: 5px; }
+
+        /* --- LAYOUT --- */
+        .game-container {
+            display: flex; flex-direction: column; height: 100%; max-width: 500px; margin: 0 auto;
+            padding: 5px 10px;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom));
+        }
+
+        header {
+            flex-shrink: 0; border-bottom: 1px solid var(--border);
+            padding-bottom: 10px; margin-bottom: 5px;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        /* SENTENCE STYLES */
+        #sentence-container {
+            display: flex; justify-content: center; width: 100%;
+        }
+        #sentence-display {
+            display: flex; flex-wrap: wrap; justify-content: center;
+            gap: 6px; line-height: 1.5; text-align: center;
+        }
+        .s-word {
+            padding: 2px 4px; border-radius: 4px; font-weight: bold;
+            font-size: 0.95rem; text-transform: uppercase;
+        }
+        .s-word.filler { color: #888; }
+        .s-word.target-hidden {
+            background-color: #333; color: transparent;
+            min-width: 40px; border-bottom: 2px solid #666;
+        }
+        .s-word.target-active {
+            background-color: #222; border: 2px solid var(--yellow); color: transparent;
+        }
+        .s-word.target-solved {
+            background-color: var(--green); color: white;
+        }
+
+        .status-bar { display: flex; justify-content: space-between; font-size: 0.8rem; color: #aaa; }
+        .score-preview { color: #fff; font-weight: bold; }
+        .hidden { display: none !important; }
+
+        /* --- BOARD --- */
+        #board-scroll-area {
+            flex: 1 1 auto; overflow-y: auto; min-height: 0;
+            margin-bottom: 5px; -webkit-overflow-scrolling: touch;
+        }
+        .tile-row { display: flex; justify-content: center; gap: 3px; margin-bottom: 4px; height: 32px; }
+        .active-row-container { flex-shrink: 0; margin-bottom: 8px; }
+        
+        .tile {
+            flex: 1; max-width: 34px; height: 100%; border: 2px solid var(--border);
+            display: flex; justify-content: center; align-items: center;
+            font-weight: 700; font-size: 1rem; text-transform: uppercase;
+        }
+        .tile.green { background-color: var(--green); border-color: var(--green); }
+        .tile.yellow { background-color: var(--yellow); border-color: var(--yellow); }
+        .tile.grey { background-color: var(--grey); border-color: var(--grey); }
+        .tile.filled { border-color: #999; }
+        .score-pill {
+            width: 35px; display: flex; justify-content: center; align-items: center;
+            font-weight: bold; font-size: 0.8rem; border-radius: 4px; margin-left: 5px; color: #000;
+        }
+
+        /* --- KEYBOARD --- */
+        #keyboard-container { flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
+        .kb-row { display: flex; justify-content: center; gap: 3px; width: 100%; }
+        .key {
+            background-color: #818384; color: white; border: none; border-radius: 4px;
+            height: 44px; flex: 1; font-weight: bold; cursor: pointer;
+            font-size: 0.9rem; display: flex; justify-content: center; align-items: center;
+        }
+        .key.wide { flex: 1.5; font-size: 0.8rem; }
+        .key.green { background: var(--green); }
+        .key.yellow { background: var(--yellow); }
+        .key.grey { background: var(--grey); opacity: 0.5; }
+
+        /* --- TOAST & MODAL --- */
+        #message-container {
+            position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; gap: 5px; z-index: 50; pointer-events: none;
+        }
+        .toast {
+            background-color: var(--white); color: var(--black); padding: 10px 15px;
+            border-radius: 4px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .shake { animation: shake 0.4s; }
+        @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: var(--black); border: 1px solid var(--border); padding: 25px; text-align: center; border-radius: 10px; width: 85%; }
+        button.primary-btn { background-color: var(--green); color: white; border: none; padding: 12px 30px; margin-top: 15px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+    </style>
 </head>
 <body>
 
     <div id="loading-screen">
         <div class="loader-content">
             <h2>Loading Dictionary...</h2>
-            <p>This may take a few seconds.</p>
+            <p>Please wait...</p>
         </div>
     </div>
 
@@ -21,7 +137,6 @@
             <div id="sentence-container">
                 <div id="sentence-display"></div>
             </div>
-            
             <div class="status-bar">
                 <div id="level-indicator">Initializing...</div>
                 <div id="last-score" class="score-preview hidden"></div>
@@ -37,7 +152,6 @@
         </div>
 
         <div id="message-container"></div>
-
         <div id="keyboard-container"></div>
     </div>
 
@@ -50,6 +164,323 @@
     </div>
 
     <script src="words.js"></script>
-    <script src="script.js"></script>
+
+    <script>
+        // --- GAME VARIABLES ---
+        let gameStructure = [];
+        let gameDictionary = {};
+        let currentTargetIndex = 0;
+        let currentTargetData = null;
+        let currentInput = ""; 
+        let revealedPositionalMask = Array(10).fill(false); 
+        let revealedDeadLetters = new Set();
+
+        // --- DOM ELEMENTS ---
+        const historyContainer = document.getElementById('history-container');
+        const activeRow = document.getElementById('active-row');
+        const levelIndicator = document.getElementById('level-indicator');
+        const messageContainer = document.getElementById('message-container');
+        const lastScoreDisplay = document.getElementById('last-score');
+        const sentenceDisplay = document.getElementById('sentence-display');
+        const loadingScreen = document.getElementById('loading-screen');
+
+        // --- INIT ---
+        function initGame() {
+            if (window.GAME_DATA) {
+                gameStructure = window.GAME_DATA.structure;
+                gameDictionary = window.GAME_DATA.dictionary;
+                loadingScreen.style.display = 'none';
+                createKeyboard();
+                startLevel(0);
+            } else {
+                setTimeout(initGame, 500); // Wait for big file
+            }
+        }
+
+        // --- LEVEL LOGIC ---
+        function startLevel(targetId) {
+            let nextTarget = gameStructure.find(item => item.id === targetId);
+            
+            if (!nextTarget) {
+                handleGrandWin();
+                return;
+            }
+
+            currentTargetIndex = targetId;
+            currentTargetData = nextTarget;
+            
+            currentInput = "";
+            revealedPositionalMask = Array(10).fill(false);
+            revealedDeadLetters = new Set();
+            historyContainer.innerHTML = "";
+            lastScoreDisplay.classList.add('hidden');
+            
+            // Auto-reveal spaces
+            let targetWordPadded = nextTarget.text.toLowerCase().padEnd(10, ' ');
+            for(let i=0; i<10; i++) {
+                if(targetWordPadded[i] === ' ') revealedPositionalMask[i] = true;
+            }
+
+            renderSentence();
+            levelIndicator.innerText = `GUESSING WORD ${targetId + 1}`;
+            renderActiveRow();
+            resetKeyboard();
+        }
+
+        function renderSentence() {
+            sentenceDisplay.innerHTML = '';
+            gameStructure.forEach(item => {
+                let span = document.createElement('span');
+                span.className = 's-word';
+                
+                if (item.type === 'filler') {
+                    span.innerText = item.text;
+                    span.classList.add('filler');
+                } else {
+                    if (item.id < currentTargetIndex) {
+                        span.innerText = item.text;
+                        span.classList.add('target-solved');
+                    } else if (item.id === currentTargetIndex) {
+                        span.innerText = item.text;
+                        span.classList.add('target-active');
+                    } else {
+                        span.innerText = item.text;
+                        span.classList.add('target-hidden');
+                    }
+                }
+                sentenceDisplay.appendChild(span);
+                
+                // CRITICAL FIX: Add manual space so words don't stick together
+                sentenceDisplay.appendChild(document.createTextNode(" "));
+            });
+        }
+
+        // --- GUESS LOGIC ---
+        function handleKey(key) {
+            if (key === 'ENTER') submitGuess();
+            else if (key === 'BACKSPACE') {
+                currentInput = currentInput.slice(0, -1);
+                renderActiveRow();
+            } else {
+                if (currentInput.length < 10) {
+                    currentInput += key;
+                    renderActiveRow();
+                }
+            }
+        }
+
+        function submitGuess() {
+            const guessClean = currentInput.trim().toLowerCase();
+
+            if (guessClean.length < 2) { shakeBoard(); showToast("Too short"); return; }
+            if (!gameDictionary.hasOwnProperty(guessClean)) { shakeBoard(); showToast("Not in word list"); return; }
+
+            const scores = gameDictionary[guessClean];
+            const score = scores[currentTargetIndex];
+            
+            const targetWordString = currentTargetData.text.toLowerCase().padEnd(10, ' ');
+            const guessPadded = guessClean.padEnd(10, ' ');
+
+            // Check Win
+            if (guessClean === currentTargetData.text.toLowerCase()) {
+                addHistoryRow(guessPadded, Array(10).fill('green'), 100, true);
+                handleWin();
+                return;
+            }
+
+            const colors = calculateColors(guessPadded, targetWordString);
+            selectNewHint(guessPadded, colors);
+            addHistoryRow(guessPadded, colors, score, false);
+            updateKeyboard(guessPadded, colors);
+
+            lastScoreDisplay.innerText = `Score: ${score}`;
+            lastScoreDisplay.classList.remove('hidden');
+            let hue = Math.max(0, Math.min(120, score * 1.2));
+            lastScoreDisplay.style.color = `hsl(${hue}, 80%, 60%)`;
+
+            currentInput = "";
+            renderActiveRow();
+            const scrollArea = document.getElementById('board-scroll-area');
+            scrollArea.scrollTop = scrollArea.scrollHeight;
+        }
+
+        function selectNewHint(guess, colors) {
+            let nonGreenCandidates = [];
+            let greenCandidates = [];
+            
+            for (let i = 0; i < 10; i++) {
+                const char = guess[i];
+                if (char === ' ') continue; 
+                const color = colors[i];
+                
+                // 1. Yellow/Grey Candidates
+                if (color === 'yellow' && !revealedPositionalMask[i]) {
+                    nonGreenCandidates.push({ index: i, type: 'positional' });
+                }
+                else if (color === 'grey' && !revealedDeadLetters.has(char)) {
+                    nonGreenCandidates.push({ index: i, type: 'deadLetter', char: char });
+                }
+                // 2. Green Candidates
+                else if (color === 'green' && !revealedPositionalMask[i]) {
+                    greenCandidates.push({ index: i, type: 'positional' });
+                }
+            }
+
+            // STRICT PRIORITY: Always pick non-green if available
+            let choice = null;
+            if (nonGreenCandidates.length > 0) {
+                const r = Math.floor(Math.random() * nonGreenCandidates.length);
+                choice = nonGreenCandidates[r];
+            } else if (greenCandidates.length > 0) {
+                const r = Math.floor(Math.random() * greenCandidates.length);
+                choice = greenCandidates[r];
+            }
+
+            if (choice) {
+                if (choice.type === 'positional') revealedPositionalMask[choice.index] = true;
+                else if (choice.type === 'deadLetter') revealedDeadLetters.add(choice.char);
+            }
+        }
+
+        function calculateColors(guess, target) {
+            let res = Array(10).fill('grey');
+            let tArr = target.split('');
+            let gArr = guess.split('');
+
+            for(let i=0; i<10; i++) {
+                if (gArr[i] === tArr[i]) { res[i] = 'green'; tArr[i] = null; gArr[i] = null; }
+            }
+            for(let i=0; i<10; i++) {
+                if (gArr[i] && tArr.includes(gArr[i])) { res[i] = 'yellow'; let idx = tArr.indexOf(gArr[i]); tArr[idx] = null; }
+            }
+            return res;
+        }
+
+        // --- RENDERERS ---
+        function renderActiveRow() {
+            activeRow.innerHTML = '';
+            const padded = currentInput.padEnd(10, ' ');
+            for (let i = 0; i < 10; i++) {
+                let div = document.createElement('div');
+                div.className = 'tile';
+                if (padded[i] !== ' ') { div.innerText = padded[i]; div.classList.add('filled'); }
+                if (i === currentInput.length) div.classList.add('active-blink');
+                activeRow.appendChild(div);
+            }
+        }
+
+        function addHistoryRow(word, colors, score, isWin) {
+            let row = document.createElement('div');
+            row.className = 'tile-row';
+            for (let i = 0; i < 10; i++) {
+                let div = document.createElement('div');
+                div.className = 'tile';
+                let char = word[i];
+                if (char !== ' ') div.innerText = char;
+
+                let showColor = isWin;
+                if (!isWin) {
+                    if ((colors[i] === 'green' || colors[i] === 'yellow') && revealedPositionalMask[i]) showColor = true;
+                    else if (colors[i] === 'grey' && revealedDeadLetters.has(char)) showColor = true;
+                }
+                if (showColor) div.classList.add(colors[i]);
+                row.appendChild(div);
+            }
+            let scoreDiv = document.createElement('div');
+            scoreDiv.className = 'score-pill';
+            scoreDiv.innerText = score;
+            scoreDiv.style.backgroundColor = `hsl(${Math.max(0, Math.min(120, score * 1.2))}, 70%, 50%)`;
+            row.appendChild(scoreDiv);
+            historyContainer.appendChild(row);
+        }
+
+        function updateKeyboard(word, colors) {
+            for(let i=0; i<10; i++) {
+                let char = word[i];
+                if (char === ' ') continue;
+                let color = colors[i];
+                let btn = document.getElementById('key-'+char);
+                if(!btn) continue;
+
+                let shouldUpdate = false;
+                if ((color === 'green' || color === 'yellow') && revealedPositionalMask[i]) shouldUpdate = true;
+                else if (color === 'grey' && revealedDeadLetters.has(char)) shouldUpdate = true;
+
+                if (shouldUpdate) {
+                    let currentClass = btn.className;
+                    if (color === 'green') btn.className = 'key green';
+                    else if (color === 'yellow' && !currentClass.includes('green')) btn.className = 'key yellow';
+                    else if (color === 'grey' && !currentClass.includes('green') && !currentClass.includes('yellow')) btn.className = 'key grey';
+                }
+            }
+        }
+
+        function createKeyboard() {
+            const kb = document.getElementById('keyboard-container');
+            kb.innerHTML = '';
+            ["qwertyuiop", "asdfghjkl", "zxcvbnm"].forEach((rowStr, idx) => {
+                let row = document.createElement('div');
+                row.className = 'kb-row';
+                if(idx===2) {
+                    let enter = document.createElement('button'); enter.className='key wide'; enter.innerText='ENTER'; enter.onclick=submitGuess; row.appendChild(enter);
+                }
+                rowStr.split('').forEach(char => {
+                    let btn = document.createElement('button'); btn.className='key'; btn.innerText=char; btn.id='key-'+char; btn.onclick=()=>handleKey(char); row.appendChild(btn);
+                });
+                if(idx===2) {
+                    let back = document.createElement('button'); back.className='key wide'; back.innerText='⌫'; back.onclick=()=>handleKey('BACKSPACE'); row.appendChild(back);
+                }
+                kb.appendChild(row);
+            });
+        }
+
+        function resetKeyboard() {
+            document.querySelectorAll('.key').forEach(k => {
+                if (k.innerText.length === 1 || k.innerText === 'ENTER' || k.innerText === '⌫') {
+                    k.className = k.classList.contains('wide') ? 'key wide' : 'key';
+                }
+            });
+        }
+
+        function showToast(msg) {
+            let t = document.createElement('div'); t.className = 'toast'; t.innerText = msg;
+            messageContainer.appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 1500);
+        }
+
+        function shakeBoard() {
+            activeRow.classList.add('shake'); setTimeout(() => activeRow.classList.remove('shake'), 500);
+        }
+
+        function handleWin() {
+            const modal = document.getElementById('modal');
+            const msg = document.getElementById('modal-msg');
+            const action = document.getElementById('modal-next-action');
+            modal.classList.remove('hidden');
+            action.innerHTML = '';
+            
+            document.getElementById('modal-title').innerText = "Word Found!";
+            msg.innerText = `You found "${currentTargetData.text.toUpperCase()}"!`;
+            
+            let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Next Word";
+            btn.onclick = () => { modal.classList.add('hidden'); startLevel(currentTargetIndex + 1); };
+            action.appendChild(btn);
+        }
+
+        function handleGrandWin() {
+            const modal = document.getElementById('modal');
+            modal.classList.remove('hidden');
+            document.getElementById('modal-title').innerText = "GIFT REVEALED";
+            document.getElementById('modal-msg').innerText = `The message is:\n"${gameStructure.map(x=>x.text).join(' ')}"`;
+            document.getElementById('modal-next-action').innerHTML = '';
+            let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Close";
+            btn.onclick = () => modal.classList.add('hidden');
+            document.getElementById('modal-next-action').appendChild(btn);
+            currentTargetIndex = 999; renderSentence();
+        }
+
+        // Start
+        initGame();
+    </script>
 </body>
 </html>
