@@ -1,12 +1,13 @@
 // --- Configuration ---
-const LEVEL_1_WORD = "heated    "; // 10 chars
-const LEVEL_2_WORD = "blanket   ";
+const LEVEL_1_WORD = "heated    "; // 6 letters + 4 spaces
+const LEVEL_2_WORD = "blanket   "; // 7 letters + 3 spaces
 let currentLevel = 1;
 let targetWord = LEVEL_1_WORD;
 
 // --- State ---
 let wordData = {};
 let currentInput = ""; 
+// revealedMask: true means we have given the user the color for this position
 let revealedMask = Array(10).fill(false); 
 
 // --- Elements ---
@@ -42,6 +43,8 @@ function startLevel(lvl) {
     renderActiveRow();
     resetKeyboard();
 }
+
+// --- Input Handling ---
 
 function handleKey(key) {
     if (key === 'ENTER') {
@@ -80,27 +83,26 @@ function submitGuess() {
     const score = wordData[guessClean][currentLevel - 1]; 
     const guessPadded = guessClean.padEnd(10, ' ');
     
-    // Check Win FIRST
+    // Win Check
     if (guessPadded === targetWord) {
-        // Reveal everything for the win row
         addHistoryRow(guessPadded, Array(10).fill('green'), score, true);
         handleWin();
         return;
     }
 
-    // Calculate internal colors
+    // Calculate Colors
     const colors = calculateColors(guessPadded, targetWord);
     
     // Select ONE new hint to permanently reveal
     selectNewHint(colors);
 
-    // Render this guess to history
+    // Render History
     addHistoryRow(guessPadded, colors, score, false);
     
-    // Update Keyboard
+    // Update Keyboard based on what was revealed
     updateKeyboard(guessPadded, colors);
 
-    // Update Score Header
+    // Update Score
     lastScoreDisplay.innerText = `Score: ${score}`;
     lastScoreDisplay.classList.remove('hidden');
     let hue = Math.max(0, Math.min(120, score * 1.2));
@@ -110,7 +112,7 @@ function submitGuess() {
     currentInput = "";
     renderActiveRow();
     
-    // Scroll to bottom
+    // Auto-scroll
     const scrollArea = document.getElementById('board-scroll-area');
     scrollArea.scrollTop = scrollArea.scrollHeight;
 }
@@ -119,13 +121,11 @@ function selectNewHint(currentColors) {
     let candidates = [];
     
     for (let i = 0; i < 10; i++) {
-        // Condition 1: Must not already be revealed
-        // Condition 2: Must NOT be a space in the TARGET word (Spaces only reveal on win)
-        if (!revealedMask[i] && targetWord[i] !== ' ') {
-            
-            // Priority Logic: Prefer Non-Green (10x weight) to Green (1x weight)
+        // We can reveal ANY slot that hasn't been revealed yet.
+        // Including spaces.
+        if (!revealedMask[i]) {
+            // Bias: We prefer revealing Yellow/Grey (10x) over Green (1x)
             let weight = (currentColors[i] === 'green') ? 1 : 10;
-            
             for(let w=0; w<weight; w++) candidates.push(i);
         }
     }
@@ -169,6 +169,7 @@ function renderActiveRow() {
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
+        // Only show text if it's a letter (spaces are invisible during typing)
         if (padded[i] !== ' ') {
             div.innerText = padded[i];
             div.classList.add('filled');
@@ -187,26 +188,24 @@ function addHistoryRow(word, colors, score, isWin) {
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
-        div.innerText = word[i]; // Show the letter (or space)
-
-        // Logic: Should we show the color?
-        // 1. If it's a WIN, show all colors (including green spaces)
-        // 2. If it's a normal turn, only show if revealedMask[i] is true
         
-        let shouldColor = isWin || revealedMask[i];
+        // Show letter (if it's not a space)
+        if (word[i] !== ' ') {
+            div.innerText = word[i];
+        }
 
-        if (shouldColor) {
+        // Color Logic:
+        // 1. If it's a Win, show all colors.
+        // 2. If revealedMask[i] is true, show the color.
+        // 3. Otherwise, show nothing (neutral border).
+        if (isWin || revealedMask[i]) {
             div.classList.add(colors[i]);
-        } else {
-            // If not revealed, it stays default (transparent/black)
-            // Even if the user guessed the letter right, we hide the color
-            // unless it was the selected hint.
         }
         
         row.appendChild(div);
     }
 
-    // Render Score
+    // Score
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'score-pill';
     scoreDiv.innerText = score;
@@ -257,16 +256,25 @@ function createKeyboard() {
 function updateKeyboard(word, colors) {
     for(let i=0; i<10; i++) {
         let char = word[i];
-        if (char === ' ') continue;
+        if (char === ' ') continue; // Don't color keyboard for spaces
         
-        // Only update keyboard for REVEALED hints
+        // Only update if this specific tile was revealed
         if (revealedMask[i]) {
             let color = colors[i];
             let btn = document.getElementById('key-'+char);
             if(btn) {
-                if(color === 'green') btn.className = 'key green';
-                else if(color === 'yellow' && !btn.classList.contains('green')) btn.className = 'key yellow';
-                else if(color === 'grey' && !btn.classList.contains('green') && !btn.classList.contains('yellow')) btn.className = 'key grey';
+                // Priority: Green > Yellow > Grey
+                let currentClass = btn.className;
+                
+                if (color === 'green') {
+                    btn.className = 'key green';
+                } 
+                else if (color === 'yellow' && !currentClass.includes('green')) {
+                    btn.className = 'key yellow';
+                } 
+                else if (color === 'grey' && !currentClass.includes('green') && !currentClass.includes('yellow')) {
+                    btn.className = 'key grey';
+                }
             }
         }
     }
@@ -274,7 +282,10 @@ function updateKeyboard(word, colors) {
 
 function resetKeyboard() {
     document.querySelectorAll('.key').forEach(k => {
-        if(k.innerText.length === 1) k.className = 'key'; 
+        // Reset all keys to default
+        if (k.innerText.length === 1 || k.innerText === 'ENTER' || k.innerText === '⌫') {
+            k.className = k.classList.contains('wide') ? 'key wide' : 'key';
+        }
     });
 }
 
@@ -316,7 +327,7 @@ function handleWin() {
         msg.innerText = "The Secret Gift is a HEATED BLANKET!";
         let btn = document.createElement('button');
         btn.className = 'primary-btn';
-        btn.innerText = "Woohoo!";
+        btn.innerText = "See Gift";
         btn.onclick = () => modal.classList.add('hidden');
         action.appendChild(btn);
     }
