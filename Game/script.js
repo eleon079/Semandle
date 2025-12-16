@@ -19,13 +19,16 @@ const lastScoreDisplay = document.getElementById('last-score');
 
 // --- Init ---
 function initGame() {
-    // Check if dictionary loaded
+    // 1. Draw the keyboard immediately (so UI looks broken, not empty)
+    createKeyboard();
+
+    // 2. Check if dictionary loaded
     if (!wordData || Object.keys(wordData).length === 0) {
         showToast("Error: words.js not loaded!");
-        return;
+        return; // Stops here if file is missing
     }
     
-    createKeyboard();
+    // 3. Start the game if data exists
     startLevel(1);
 }
 
