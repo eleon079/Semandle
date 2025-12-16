@@ -1,13 +1,13 @@
 // --- Configuration ---
-const LEVEL_1_WORD = "heated    "; // 6 letters + 4 spaces
-const LEVEL_2_WORD = "blanket   "; // 7 letters + 3 spaces
+const LEVEL_1_WORD = "heated    "; 
+const LEVEL_2_WORD = "blanket   ";
 let currentLevel = 1;
 let targetWord = LEVEL_1_WORD;
 
 // --- State ---
-let wordData = {};
+// We simply point to the global variable loaded from words.js
+let wordData = window.GAME_DICTIONARY || {}; 
 let currentInput = ""; 
-// revealedMask: true means we have given the user the color for this position
 let revealedMask = Array(10).fill(false); 
 
 // --- Elements ---
@@ -18,15 +18,15 @@ const messageContainer = document.getElementById('message-container');
 const lastScoreDisplay = document.getElementById('last-score');
 
 // --- Init ---
-async function initGame() {
-    try {
-        const res = await fetch('words.json');
-        wordData = await res.json();
-        createKeyboard();
-        startLevel(1);
-    } catch (e) {
-        showToast("Error loading words.json");
+function initGame() {
+    // Check if dictionary loaded
+    if (!wordData || Object.keys(wordData).length === 0) {
+        showToast("Error: words.js not loaded!");
+        return;
     }
+    
+    createKeyboard();
+    startLevel(1);
 }
 
 function startLevel(lvl) {
@@ -39,13 +39,13 @@ function startLevel(lvl) {
     historyContainer.innerHTML = "";
     levelIndicator.innerText = `Level ${lvl} / 2`;
     lastScoreDisplay.classList.add('hidden');
+    lastScoreDisplay.innerText = "";
     
     renderActiveRow();
     resetKeyboard();
 }
 
 // --- Input Handling ---
-
 function handleKey(key) {
     if (key === 'ENTER') {
         submitGuess();
@@ -121,10 +121,9 @@ function selectNewHint(currentColors) {
     let candidates = [];
     
     for (let i = 0; i < 10; i++) {
-        // We can reveal ANY slot that hasn't been revealed yet.
-        // Including spaces.
-        if (!revealedMask[i]) {
-            // Bias: We prefer revealing Yellow/Grey (10x) over Green (1x)
+        // Condition: Not revealed AND not a space
+        if (!revealedMask[i] && targetWord[i] !== ' ') {
+            // Bias: Prefer Non-Green (10x) over Green (1x)
             let weight = (currentColors[i] === 'green') ? 1 : 10;
             for(let w=0; w<weight; w++) candidates.push(i);
         }
@@ -161,7 +160,6 @@ function calculateColors(guess, target) {
 }
 
 // --- Rendering ---
-
 function renderActiveRow() {
     activeRow.innerHTML = '';
     const padded = currentInput.padEnd(10, ' ');
@@ -169,7 +167,6 @@ function renderActiveRow() {
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
-        // Only show text if it's a letter (spaces are invisible during typing)
         if (padded[i] !== ' ') {
             div.innerText = padded[i];
             div.classList.add('filled');
@@ -189,15 +186,10 @@ function addHistoryRow(word, colors, score, isWin) {
         let div = document.createElement('div');
         div.className = 'tile';
         
-        // Show letter (if it's not a space)
         if (word[i] !== ' ') {
             div.innerText = word[i];
         }
 
-        // Color Logic:
-        // 1. If it's a Win, show all colors.
-        // 2. If revealedMask[i] is true, show the color.
-        // 3. Otherwise, show nothing (neutral border).
         if (isWin || revealedMask[i]) {
             div.classList.add(colors[i]);
         }
@@ -205,7 +197,6 @@ function addHistoryRow(word, colors, score, isWin) {
         row.appendChild(div);
     }
 
-    // Score
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'score-pill';
     scoreDiv.innerText = score;
@@ -256,16 +247,13 @@ function createKeyboard() {
 function updateKeyboard(word, colors) {
     for(let i=0; i<10; i++) {
         let char = word[i];
-        if (char === ' ') continue; // Don't color keyboard for spaces
+        if (char === ' ') continue;
         
-        // Only update if this specific tile was revealed
         if (revealedMask[i]) {
             let color = colors[i];
             let btn = document.getElementById('key-'+char);
             if(btn) {
-                // Priority: Green > Yellow > Grey
                 let currentClass = btn.className;
-                
                 if (color === 'green') {
                     btn.className = 'key green';
                 } 
@@ -282,7 +270,6 @@ function updateKeyboard(word, colors) {
 
 function resetKeyboard() {
     document.querySelectorAll('.key').forEach(k => {
-        // Reset all keys to default
         if (k.innerText.length === 1 || k.innerText === 'ENTER' || k.innerText === '⌫') {
             k.className = k.classList.contains('wide') ? 'key wide' : 'key';
         }
@@ -333,4 +320,5 @@ function handleWin() {
     }
 }
 
+// Start
 initGame();
