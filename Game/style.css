@@ -57,25 +57,76 @@ header {
 
 /* DASHBOARD */
 .dashboard {
-    display: flex; justify-content: space-between; align-items: stretch;
-    background-color: var(--dashboard-bg); border-radius: 6px; padding: 5px 8px;
-    height: 40px;
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; /* Center items vertically */
+    background-color: var(--dashboard-bg); 
+    border-radius: 6px; 
+    padding: 2px 8px; /* Tighter padding */
+    height: 38px; /* Slightly more compact */
 }
+
 .top3-container {
-    display: flex; flex-direction: column; justify-content: center;
-    flex-grow: 1; margin-right: 10px; overflow: hidden;
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center;
+    flex-grow: 1; 
+    margin-right: 8px; 
+    overflow: hidden; /* Contains the scrolling list */
+    min-width: 0; /* CRITICAL: Allows flex child to shrink below content size */
 }
-.label { font-size: 0.6rem; color: #888; font-weight: bold; letter-spacing: 1px; }
+
+.label { 
+    font-size: 0.55rem; /* Smaller label */
+    color: #888; 
+    font-weight: bold; 
+    letter-spacing: 0.5px; 
+    margin-bottom: 1px;
+}
+
 #top3-list {
-    display: flex; gap: 8px; font-size: 0.85rem; font-weight: bold;
-    color: var(--white); overflow: hidden; white-space: nowrap;
+    display: flex; 
+    gap: 6px; /* Reduced gap */
+    font-size: 0.75rem; /* Smaller font (was 0.85rem) */
+    font-weight: bold;
+    color: var(--white); 
+    
+    /* Horizontal Scroll Logic */
+    overflow-x: auto; 
+    white-space: nowrap;
+    
+    /* Hide scrollbar for clean look */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
 }
-.top-word { color: #4ade80; }
+/* Hide scrollbar for Chrome/Safari */
+#top3-list::-webkit-scrollbar { display: none; }
+
+.top-word { 
+    color: #4ade80; 
+    /* Optional: Add a subtle background to separate words visually */
+    background: rgba(74, 222, 128, 0.1);
+    padding: 0 4px;
+    border-radius: 3px;
+}
+
 .guess-counter {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-width: 50px; border-left: 1px solid #333; padding-left: 8px;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    min-width: 45px; 
+    border-left: 1px solid #333; 
+    padding-left: 6px;
+    flex-shrink: 0;
 }
-#total-guesses { font-size: 1.1rem; font-weight: bold; color: var(--white); line-height: 1; }
+
+#total-guesses { 
+    font-size: 1rem; /* Slightly smaller */
+    font-weight: bold; 
+    color: var(--white); 
+    line-height: 1; 
+}
 
 /* BOARD GRID */
 #board-scroll-area {
