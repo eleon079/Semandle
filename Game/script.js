@@ -14,7 +14,7 @@ let bestGuesses = [];
 let knownGreens = Array(10).fill(null);
 let knownYellows = new Set(); // Tracks specific "Index-Char" combinations for the randomizer
 let knownGreys = new Set();
-let knownFoundLetters = new Set(); // NEW: Tracks letters we know exist in the word generally
+// REMOVED: let knownFoundLetters = new Set(); // NEW: Tracks letters we know exist in the word generally
 
 // --- DOM Elements ---
 const historyContainer = document.getElementById('history-container');
@@ -58,7 +58,7 @@ function startLevel(targetId) {
     knownGreens = Array(10).fill(null);
     knownYellows = new Set();
     knownGreys = new Set();
-    knownFoundLetters = new Set(); // RESET THIS
+    // REMOVED: knownFoundLetters reset
 
     historyContainer.innerHTML = "";
     updateDashboard();
@@ -170,8 +170,7 @@ function processHintUpdate(guess, target) {
     let colors = calculateColors(guess, target);
     let candidates = [];
 
-    // Check if the character is ACTUALLY in the target (ignoring position)
-    // We use this to prevent adding 'S' to knownGreys if it's just an excess duplicate
+    // Helper: Is the char anywhere in the target?
     const targetHasChar = (c) => target.indexOf(c) !== -1;
 
     for (let i = 0; i < 10; i++) {
@@ -188,12 +187,12 @@ function processHintUpdate(guess, target) {
         else if (color === 'yellow') {
             let key = `${i}-${char}`;
             if (!knownYellows.has(key)) {
+                // Only a candidate if we haven't revealed this SPECIFIC positional clue yet
                 candidates.push({ type: 'yellow', index: i, char: char, key: key });
             }
         } 
         else if (color === 'grey') {
-            // FIX: Only treat as a "Grey Reveal" candidate if the letter is NOT in the target at all.
-            // This prevents "excess duplicates" from poisoning the knownGreys list.
+            // Only add to grey if strictly not in target (avoids poisoning duplicates)
             if (!knownGreys.has(char) && !targetHasChar(char)) {
                 candidates.push({ type: 'grey', index: i, char: char });
             }
@@ -205,12 +204,11 @@ function processHintUpdate(guess, target) {
 
         if (choice.type === 'green') {
             knownGreens[choice.index] = choice.char;
+            // Clean up: If we know it's green, it's no longer a "yellow" clue
             knownYellows.delete(`${choice.index}-${choice.char}`);
-            knownFoundLetters.add(choice.char); 
         }
         else if (choice.type === 'yellow') {
             knownYellows.add(choice.key);
-            knownFoundLetters.add(choice.char); 
         }
         else if (choice.type === 'grey') {
             knownGreys.add(choice.char);
@@ -287,34 +285,30 @@ function addHistoryRow(word, score, isWin, revealedIndex = -1) {
             if(char !== ' ') colorClass = 'green';
         } else {
             if (char !== ' ') {
-                // 1. Is it a known GREEN position?
+                // STRICT RENDERING PRIORITY
+                
+                // 1. Known Green (Global knowledge)
                 if (knownGreens[i] === char) {
                     colorClass = 'green';
                 }
-                // 2. Is it the SPECIFIC tile we just revealed?
-                else if (i === revealedIndex) {
-                     if (knownGreens[i] === char) colorClass = 'green';
-                     else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
-                     else if (knownGreys.has(char)) colorClass = 'grey';
-                     else if (knownFoundLetters.has(char)) colorClass = 'yellow'; 
+                // 2. Known Yellow (Specific Positional knowledge)
+                // We only paint yellow if we specifically know that "Char at Index i" is a Yellow clue.
+                else if (knownYellows.has(`${i}-${char}`)) {
+                    colorClass = 'yellow';
                 }
-                // 3. General Logic for past clues
-                else {
-                    // FIX: Check Found (Yellow) BEFORE Grey.
-                    // This ensures that if a letter is known to be in the word, it stays yellow
-                    // even if a duplicate elsewhere was grey.
-                    if (knownFoundLetters.has(char)) {
-                        colorClass = 'yellow';
-                    }
-                    else if (knownGreys.has(char)) {
-                        colorClass = 'grey';
-                    }
+                // 3. Known Grey (Global knowledge)
+                else if (knownGreys.has(char)) {
+                    colorClass = 'grey';
                 }
+                
+                // If the letter is in the word but we don't have a clue for THIS position,
+                // it remains uncolored (Neutral). This prevents "Fake Yellows".
             }
         }
 
         if (colorClass) div.classList.add(colorClass);
 
+        // Apply visual stroke ONLY to the specifically revealed tile this turn
         if (i === revealedIndex) {
             div.classList.add('new-reveal');
         }
