@@ -410,7 +410,7 @@ function handleWin() {
     let btn = document.createElement('button'); 
     btn.className = 'primary-btn'; 
     
-    let timeLeft = 3; // Set to 5 seconds as requested
+    let timeLeft = 10; // Set to 5 seconds as requested
     btn.innerText = `Next Word (${timeLeft}s)`;
     
     const proceed = () => {
