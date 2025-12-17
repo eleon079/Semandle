@@ -9,6 +9,7 @@ let currentInput = "";
 let guessCount = 0;
 let usedWords = new Set(); 
 let bestGuesses = []; 
+let totalGameGuesses
 
 // --- CLUE STORAGE ---
 let knownGreens = Array(10).fill(null);
@@ -152,6 +153,7 @@ function submitGuess() {
 
     usedWords.add(guessClean);
     guessCount++;
+    totalGameGuesses++;
     
     const scores = gameDictionary[guessClean];
     const score = scores[currentTargetIndex];
@@ -433,6 +435,25 @@ function handleWin() {
             proceed();
         }
     }, 1000);
+}
+
+function handleGrandWin() {
+    const modal = document.getElementById('modal');
+    modal.classList.remove('hidden');
+    
+    // ...
+    
+    document.getElementById('modal-title').innerText = "GIFT REVEALED";
+    
+    const fullMessage = gameStructure.map(x => x.text).join(' ');
+    
+    document.getElementById('modal-msg').innerHTML = `
+        <p>The secret message is:</p>
+        <h3 style="color: var(--green); margin: 15px 0;">"${fullMessage}"</h3>
+        <p><strong>Total Guesses: ${totalGameGuesses}</strong></p>
+    `;
+    
+    // ...
 }
 
 // Start
