@@ -203,32 +203,28 @@ function submitGuess() {
 function processHintUpdate(guess, target) {
     let colors = calculateColors(guess, target);
     let candidates = [];
-
-    // Helper: Is the char anywhere in the target?
     const targetHasChar = (c) => target.indexOf(c) !== -1;
 
     for (let i = 0; i < 10; i++) {
         const char = guess[i];
-        if (char === ' ') continue; 
+        if (char === ' ' || char === null) continue; 
         
         const color = colors[i];
         
-        if (color === 'green') {
-            if (knownGreens[i] !== char) {
-                candidates.push({ type: 'green', index: i, char: char });
-            }
+        if (color === 'green' && knownGreens[i] !== char) {
+            candidates.push({ type: 'green', index: i, char: char });
         } 
         else if (color === 'yellow') {
-            let key = `${i}-${char}`;
-            if (!knownYellows.has(key)) {
-                // Only a candidate if we haven't revealed this SPECIFIC positional clue yet
-                candidates.push({ type: 'yellow', index: i, char: char, key: key });
+            if (!knownYellows.has(`${i}-${char}`) && knownGreens[i] === null) {
+                candidates.push({ type: 'yellow', index: i, char: char, key: `${i}-${char}` });
             }
         } 
         else if (color === 'grey') {
-            // Only add to grey if strictly not in target (avoids poisoning duplicates)
-            if (!knownGreys.has(char) && !targetHasChar(char)) {
-                candidates.push({ type: 'grey', index: i, char: char });
+            // CHANGE: We allow the candidate even if the letter is in the target.
+            // This ensures we can at least "flash" the tile with a white stroke
+            // to tell the user "This specific spot is wrong".
+            if (!knownGreys.has(char)) {
+                 candidates.push({ type: 'grey', index: i, char: char });
             }
         }
     }
@@ -238,18 +234,23 @@ function processHintUpdate(guess, target) {
 
         if (choice.type === 'green') {
             knownGreens[choice.index] = choice.char;
-            // Clean up: If we know it's green, it's no longer a "yellow" clue
             knownYellows.delete(`${choice.index}-${choice.char}`);
-            // show letter in sentence
-            renderSentence();
-        }
+            renderSentence(); 
+        } 
         else if (choice.type === 'yellow') {
             knownYellows.add(choice.key);
-        }
+        } 
         else if (choice.type === 'grey') {
-            knownGreys.add(choice.char);
+            // CRITICAL FIX:
+            // We revealed a Grey tile, so we return its index below (to show the stroke).
+            // BUT, we only add it to 'knownGreys' if it is strictly NOT in the target.
+            // This prevents "poisoning" the Green 'L' by turning it Grey.
+            if (!targetHasChar(choice.char)) {
+                knownGreys.add(choice.char);
+            }
         }
-
+        
+        // Always return the index so the UI draws the white box!
         return choice.index;
     }
     return -1;

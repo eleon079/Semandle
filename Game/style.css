@@ -50,8 +50,9 @@ header {
     color: var(--white); 
     background-color: #2a2a2a;
     border-bottom: 2px solid #555;
-    letter-spacing: 2px; 
-    font-family: 'Courier New', monospace; /* Keeps spacing consistent */
+    /* Use monospace so "_" and "W" are the same width */
+    font-family: 'JetBrains Mono', 'Roboto Mono', 'Source Code Pro', monospace;; 
+    letter-spacing: 2px;
     padding: 2px 6px;
 }
 
