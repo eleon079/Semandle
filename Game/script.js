@@ -1,7 +1,3 @@
-{
-type: existing file
-fileName: script.js
-}
 // --- Data Containers ---
 let gameStructure = [];
 let gameDictionary = {};
