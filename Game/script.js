@@ -147,14 +147,16 @@ function submitGuess() {
     // Win Check
     if (guessClean === currentTargetData.text.toLowerCase()) {
         for(let i=0; i<10; i++) knownGreens[i] = guessPadded[i];
-        addHistoryRow(guessPadded, score, true); 
+        addHistoryRow(guessPadded, score, true, -1); 
         handleWin();
         return;
     }
 
-    processHintUpdate(guessPadded, targetWordString);
+    // Process exactly ONE hint and get the index of the revealed tile
+    const revealedIndex = processHintUpdate(guessPadded, targetWordString);
     
-    addHistoryRow(guessPadded, score, false);
+    // Pass the index to addHistoryRow for visual highlighting
+    addHistoryRow(guessPadded, score, false, revealedIndex);
     updateKeyboard();
 
     currentInput = "";
@@ -163,59 +165,88 @@ function submitGuess() {
 }
 
 function processHintUpdate(guess, target) {
+    // 1. Calculate the true colors for this guess vs target
     let colors = calculateColors(guess, target);
     let candidates = [];
 
+    // 2. Filter for ONLY information we do not already know
     for (let i = 0; i < 10; i++) {
         const char = guess[i];
-        if (char === ' ') continue; 
+        if (char === ' ') continue; // Never reveal spaces
         
         const color = colors[i];
         
         if (color === 'green') {
+            // Valid if we don't already know this position is green
             if (knownGreens[i] !== char) {
                 candidates.push({ type: 'green', index: i, char: char });
             }
         } 
         else if (color === 'yellow') {
+            // Valid if we haven't tracked this specific index-char as yellow yet
+            // AND we don't already know it's green (though calculateColors handles priority)
             let key = `${i}-${char}`;
             if (!knownYellows.has(key)) {
                 candidates.push({ type: 'yellow', index: i, char: char, key: key });
             }
         } 
         else if (color === 'grey') {
+            // Valid if we don't already know this char is grey
             if (!knownGreys.has(char)) {
-                candidates.push({ type: 'grey', char: char });
+                candidates.push({ type: 'grey', index: i, char: char });
             }
         }
     }
 
+    // 3. Pick EXACTLY ONE random candidate if available
     if (candidates.length > 0) {
-        let nonGreens = candidates.filter(c => c.type !== 'green');
-        let choice = null;
-        
-        if (nonGreens.length > 0) {
-            choice = nonGreens[Math.floor(Math.random() * nonGreens.length)];
-        } else {
-            choice = candidates[Math.floor(Math.random() * candidates.length)];
+        let choice = candidates[Math.floor(Math.random() * candidates.length)];
+
+        // Update Global State
+        if (choice.type === 'green') {
+            knownGreens[choice.index] = choice.char;
+            // Clean up old yellows that might conflict now that we know the green
+            knownYellows.delete(`${choice.index}-${choice.char}`);
+        }
+        else if (choice.type === 'yellow') {
+            knownYellows.add(choice.key);
+        }
+        else if (choice.type === 'grey') {
+            knownGreys.add(choice.char);
         }
 
-        if (choice.type === 'green') knownGreens[choice.index] = choice.char;
-        else if (choice.type === 'yellow') knownYellows.add(choice.key);
-        else if (choice.type === 'grey') knownGreys.add(choice.char);
+        // Return the index to highlight
+        return choice.index;
     }
+
+    return -1; // No new info found
 }
 
 function calculateColors(guess, target) {
+    // Standard Wordle Logic handling duplicates
     let res = Array(10).fill('grey');
     let tArr = target.split('');
     let gArr = guess.split('');
 
+    // 1. Find Greens first
     for(let i=0; i<10; i++) {
-        if (gArr[i] === tArr[i]) { res[i] = 'green'; tArr[i] = null; gArr[i] = null; }
+        if (gArr[i] !== ' ' && gArr[i] === tArr[i]) { 
+            res[i] = 'green'; 
+            tArr[i] = null; // Mark used in target
+            gArr[i] = null; // Mark used in guess
+        }
     }
+    
+    // 2. Find Yellows
     for(let i=0; i<10; i++) {
-        if (gArr[i] && tArr.includes(gArr[i])) { res[i] = 'yellow'; let idx = tArr.indexOf(gArr[i]); tArr[idx] = null; }
+        if (gArr[i] !== ' ' && gArr[i] !== null) { 
+            // Check if letter exists elsewhere in remaining target letters
+            let idx = tArr.indexOf(gArr[i]);
+            if (idx !== -1) {
+                res[i] = 'yellow';
+                tArr[idx] = null; // Mark used
+            }
+        }
     }
     return res;
 }
@@ -241,7 +272,7 @@ function renderActiveRow() {
     activeRow.appendChild(spacer);
 }
 
-function addHistoryRow(word, score, isWin) {
+function addHistoryRow(word, score, isWin, revealedIndex = -1) {
     let row = document.createElement('div');
     row.className = 'tile-row';
     
@@ -256,7 +287,7 @@ function addHistoryRow(word, score, isWin) {
         if (isWin) {
             if(char !== ' ') colorClass = 'green';
         } else {
-            // Only color if it's a letter AND we know it
+            // Only color if it's a letter AND we know it from global state
             if (char !== ' ') {
                 if (knownGreens[i] === char) colorClass = 'green';
                 else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
@@ -265,6 +296,12 @@ function addHistoryRow(word, score, isWin) {
         }
 
         if (colorClass) div.classList.add(colorClass);
+
+        // Apply visual pop ONLY to the specifically revealed tile this turn
+        if (i === revealedIndex) {
+            div.classList.add('new-reveal');
+        }
+
         row.appendChild(div);
     }
 
