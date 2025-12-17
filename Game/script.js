@@ -9,7 +9,7 @@ let currentInput = "";
 let guessCount = 0;
 let usedWords = new Set(); 
 let bestGuesses = []; 
-let totalGameGuesses
+let totalGameGuesses = 0;
 
 // --- CLUE STORAGE ---
 let knownGreens = Array(10).fill(null);
@@ -173,11 +173,7 @@ function submitGuess() {
     if (guessClean === currentTargetData.text.toLowerCase()) {
         for(let i=0; i<10; i++) knownGreens[i] = guessPadded[i];
         addHistoryRow(guessPadded, score, true, -1); 
-        // TEMPORARY BYPASS:
-        // Instead of calling handleWin(), jump straight to the next level
-        setTimeout(() => {
-            startLevel(currentTargetIndex + 1);
-        }, 500); // Small delay so you can see the green row before it resets
+        handleWin()
         return;
     }
 
@@ -414,7 +410,7 @@ function handleWin() {
     let btn = document.createElement('button'); 
     btn.className = 'primary-btn'; 
     
-    let timeLeft = 5; // Set to 5 seconds as requested
+    let timeLeft = 3; // Set to 5 seconds as requested
     btn.innerText = `Next Word (${timeLeft}s)`;
     
     const proceed = () => {
