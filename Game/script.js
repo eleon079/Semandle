@@ -97,16 +97,23 @@ function updateDashboard() {
     totalGuessesDisplay.innerText = guessCount;
     
     if (bestGuesses.length === 0) {
-        top3List.innerHTML = '<span class="empty-state">-</span>';
+        top3List.innerHTML = '<span style="color:#666; font-size:0.7rem;">No guesses yet</span>';
         return;
     }
 
     top3List.innerHTML = '';
     bestGuesses.forEach(bg => {
-        let span = document.createElement('span');
-        span.className = 'top-word';
-        span.innerText = `${bg.word.toUpperCase()} (${bg.score})`;
-        top3List.appendChild(span);
+        let div = document.createElement('div');
+        div.className = 'top-word';
+        
+        // Calculate Color (Same logic as history badges)
+        let hue = Math.max(0, Math.min(120, bg.score * 2)); 
+        div.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
+        
+        // Add content: Word on left, Score on right
+        div.innerHTML = `<span>${bg.word.toUpperCase()}</span> <span>${bg.score}</span>`;
+        
+        top3List.appendChild(div);
     });
 }
 
@@ -137,10 +144,10 @@ function submitGuess() {
     const scores = gameDictionary[guessClean];
     const score = scores[currentTargetIndex];
     
-    // Update Top 3
+    // Update Top 5
     bestGuesses.push({ word: guessClean, score: score });
     bestGuesses.sort((a,b) => b.score - a.score);
-    if (bestGuesses.length > 3) bestGuesses.length = 3;
+    if (bestGuesses.length > 5) bestGuesses.length = 5;
     updateDashboard();
 
     const targetWordString = currentTargetData.text.toLowerCase().padEnd(10, ' ');
@@ -319,7 +326,7 @@ function addHistoryRow(word, score, isWin, revealedIndex = -1) {
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'history-score';
     scoreDiv.innerText = score;
-    let hue = Math.max(0, Math.min(120, score * 1.2));
+    let hue = Math.max(0, Math.min(120, score * 2));
     scoreDiv.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
     
     row.appendChild(scoreDiv);
