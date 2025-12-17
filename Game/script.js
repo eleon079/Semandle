@@ -240,6 +240,8 @@ function processHintUpdate(guess, target) {
             knownGreens[choice.index] = choice.char;
             // Clean up: If we know it's green, it's no longer a "yellow" clue
             knownYellows.delete(`${choice.index}-${choice.char}`);
+            // show letter in sentence
+            renderSentence();
         }
         else if (choice.type === 'yellow') {
             knownYellows.add(choice.key);
