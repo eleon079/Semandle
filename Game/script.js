@@ -218,8 +218,12 @@ function processHintUpdate(guess, target) {
             }
         } 
         else if (color === 'yellow') {
-            if (!knownYellows.has(`${i}-${char}`) && knownGreens[i] === null) {
-                candidates.push({ type: 'yellow', index: i, char: char, key: `${i}-${char}` });
+            // FIX: if (!knownYellows.has(`${i}-${char}`) && knownGreens[i] === null) {
+            //    candidates.push({ type: 'yellow', index: i, char: char, key: `${i}-${char}` });
+            // Now, even if we know the Green letter for this spot, 
+            // we can still get a Yellow hint telling us this letter belongs elsewhere.
+            if (!knownYellows.has(key)) {
+                candidates.push({ type: 'yellow', index: i, char: char, key: key });
             }
         } 
         else if (color === 'grey') {
