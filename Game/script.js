@@ -152,7 +152,6 @@ function submitGuess() {
         return;
     }
 
-    // Process Hints
     processHintUpdate(guessPadded, targetWordString);
     
     addHistoryRow(guessPadded, score, false);
@@ -163,83 +162,69 @@ function submitGuess() {
     setTimeout(() => { scrollArea.scrollTop = scrollArea.scrollHeight; }, 10);
 }
 
-// --- CORE HINT LOGIC (UPDATED) ---
-
 function processHintUpdate(guess, target) {
     let colors = calculateColors(guess, target);
-    
-    // 1. Group indices by Letter
-    // validLetterMap stores: { 'e': [1, 4], 's': [0] }
-    let validLetterMap = {}; 
-    let deadCandidates = [];
+    let candidates = [];
 
     for (let i = 0; i < 10; i++) {
         const char = guess[i];
         if (char === ' ') continue; 
-
-        // If char is in target, we track its positions in the guess
-        if (target.includes(char)) {
-            if (!validLetterMap[char]) validLetterMap[char] = [];
-            validLetterMap[char].push(i);
-        } else {
-            // If char is NOT in target, it's a candidate for a Grey clue
-            if (!knownGreys.has(char)) {
-                deadCandidates.push(char);
-            }
-        }
-    }
-
-    // 2. Filter Valid Letters: Only keep ones that provide NEW info
-    let usefulLetters = [];
-    
-    for (let char in validLetterMap) {
-        let indices = validLetterMap[char];
-        let providesNewInfo = false;
-
-        // Check if revealing these indices adds anything new
-        for (let idx of indices) {
-            let color = colors[idx];
-            
-            if (color === 'green') {
-                if (knownGreens[idx] !== char) providesNewInfo = true;
-            } else if (color === 'yellow') {
-                let key = `${idx}-${char}`;
-                if (!knownYellows.has(key)) providesNewInfo = true;
-            }
-        }
-
-        if (providesNewInfo) {
-            usefulLetters.push(char);
-        }
-    }
-
-    // 3. Selection Priority: 
-    //    A. Reveal a Useful Letter (all instances)
-    //    B. Reveal a Dead Letter
-    
-    if (usefulLetters.length > 0) {
-        // Pick one random useful letter
-        let chosenChar = usefulLetters[Math.floor(Math.random() * usefulLetters.length)];
-        let indices = validLetterMap[chosenChar];
         
-        // Reveal ALL instances of this letter in the current guess
-        indices.forEach(idx => {
-            let color = colors[idx];
-            if (color === 'green') {
-                knownGreens[idx] = chosenChar;
-            } else if (color === 'yellow') {
-                knownYellows.add(`${idx}-${chosenChar}`);
+        const color = colors[i];
+        
+        // 1. Green Candidates
+        if (color === 'green') {
+            if (knownGreens[i] !== char) {
+                candidates.push({ type: 'green', index: i, char: char });
             }
-        });
-        showToast(`Revealing all '${chosenChar.toUpperCase()}'s`);
-    } 
-    else if (deadCandidates.length > 0) {
-        // Pick one random dead letter
-        let chosenChar = deadCandidates[Math.floor(Math.random() * deadCandidates.length)];
-        knownGreys.add(chosenChar);
-        showToast(`'${chosenChar.toUpperCase()}' is not in the word`);
+        } 
+        // 2. Yellow Candidates
+        else if (color === 'yellow') {
+            let key = `${i}-${char}`;
+            if (!knownYellows.has(key)) {
+                candidates.push({ type: 'yellow', index: i, char: char, key: key });
+            }
+        } 
+        // 3. Grey Candidates (Strict Logic)
+        else if (color === 'grey') {
+            // CRITICAL FIX: Only add as dead letter if the target does NOT contain this char
+            if (!target.includes(char)) {
+                if (!knownGreys.has(char)) {
+                    candidates.push({ type: 'grey', char: char });
+                }
+            }
+        }
+    }
+
+    if (candidates.length > 0) {
+        // Strict Priority: Non-Green First
+        let nonGreens = candidates.filter(c => c.type !== 'green');
+        let choice = null;
+        
+        if (nonGreens.length > 0) {
+            choice = nonGreens[Math.floor(Math.random() * nonGreens.length)];
+        } else {
+            choice = candidates[Math.floor(Math.random() * candidates.length)];
+        }
+
+        // Apply
+        let msg = "";
+        if (choice.type === 'green') {
+            knownGreens[choice.index] = choice.char;
+            msg = `Clue: '${choice.char.toUpperCase()}' is correct at #${choice.index + 1}`;
+        } 
+        else if (choice.type === 'yellow') {
+            knownYellows.add(choice.key);
+            msg = `Clue: '${choice.char.toUpperCase()}' is in the word`;
+        } 
+        else if (choice.type === 'grey') {
+            knownGreys.add(choice.char);
+            msg = `Clue: '${choice.char.toUpperCase()}' is not in the word`;
+        }
+        
+        showToast(msg);
     } else {
-        showToast("No new clues available!");
+        showToast("No new clues found!");
     }
 }
 
@@ -289,9 +274,11 @@ function addHistoryRow(word, score, isWin) {
         if (isWin) {
             if(char !== ' ') colorClass = 'green';
         } else {
+            // Only color if it's a letter AND we know it
             if (char !== ' ') {
                 if (knownGreens[i] === char) colorClass = 'green';
                 else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
+                // Only show GREY if the letter is actually a Dead Letter
                 else if (knownGreys.has(char)) colorClass = 'grey';
             }
         }
