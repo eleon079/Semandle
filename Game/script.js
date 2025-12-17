@@ -103,7 +103,7 @@ function updateDashboard() {
 
     top3List.innerHTML = '';
     
-    // 1. Display top 5 instead of top 3
+    // Explicitly take the top 5
     let displayList = bestGuesses.slice(0, 5);
 
     displayList.forEach(bg => {
@@ -111,10 +111,10 @@ function updateDashboard() {
         span.className = 'top-word';
         span.innerText = `${bg.word.toUpperCase()} (${bg.score})`;
         
-        // 2. Apply dynamic color based on score (50 = Green)
-        // Logic: score * 2.4 ensures that 50 * 2.4 = 120 (Green)
-        let hue = Math.max(0, Math.min(120, bg.score * 1.8));
-        span.style.color = `hsl(${hue}, 70%, 50%)`;
+        // COLOR LOGIC: Score 60 = Green (Hue 120).
+        // Multiplier: 2.0 (60 * 2 = 120)
+        let hue = Math.max(0, Math.min(120, bg.score * 2.0));
+        span.style.color = `hsl(${hue}, 70%, 60%)`;
         
         top3List.appendChild(span);
     });
@@ -147,16 +147,18 @@ function submitGuess() {
     const scores = gameDictionary[guessClean];
     const score = scores[currentTargetIndex];
     
-    // Update Top 3
+    // Update Top List
     bestGuesses.push({ word: guessClean, score: score });
     bestGuesses.sort((a,b) => b.score - a.score);
+    
+    // FORCE LENGTH TO 5 (This ensures we keep the top 5)
     if (bestGuesses.length > 5) bestGuesses.length = 5;
+    
     updateDashboard();
 
     const targetWordString = currentTargetData.text.toLowerCase().padEnd(10, ' ');
     const guessPadded = guessClean.padEnd(10, ' ');
 
-    // Win Check
     if (guessClean === currentTargetData.text.toLowerCase()) {
         for(let i=0; i<10; i++) knownGreens[i] = guessPadded[i];
         addHistoryRow(guessPadded, score, true, -1); 
@@ -164,10 +166,7 @@ function submitGuess() {
         return;
     }
 
-    // Process exactly ONE hint and get the index of the revealed tile
     const revealedIndex = processHintUpdate(guessPadded, targetWordString);
-    
-    // Pass the index to addHistoryRow for visual highlighting
     addHistoryRow(guessPadded, score, false, revealedIndex);
     updateKeyboard();
 
@@ -295,33 +294,14 @@ function addHistoryRow(word, score, isWin, revealedIndex = -1) {
             if(char !== ' ') colorClass = 'green';
         } else {
             if (char !== ' ') {
-                // STRICT RENDERING PRIORITY
-                
-                // 1. Known Green (Global knowledge)
-                if (knownGreens[i] === char) {
-                    colorClass = 'green';
-                }
-                // 2. Known Yellow (Specific Positional knowledge)
-                // We only paint yellow if we specifically know that "Char at Index i" is a Yellow clue.
-                else if (knownYellows.has(`${i}-${char}`)) {
-                    colorClass = 'yellow';
-                }
-                // 3. Known Grey (Global knowledge)
-                else if (knownGreys.has(char)) {
-                    colorClass = 'grey';
-                }
-                
-                // If the letter is in the word but we don't have a clue for THIS position,
-                // it remains uncolored (Neutral). This prevents "Fake Yellows".
+                if (knownGreens[i] === char) colorClass = 'green';
+                else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
+                else if (knownGreys.has(char)) colorClass = 'grey';
             }
         }
 
         if (colorClass) div.classList.add(colorClass);
-
-        // Apply visual stroke ONLY to the specifically revealed tile this turn
-        if (i === revealedIndex) {
-            div.classList.add('new-reveal');
-        }
+        if (i === revealedIndex) div.classList.add('new-reveal');
 
         row.appendChild(div);
     }
@@ -329,7 +309,10 @@ function addHistoryRow(word, score, isWin, revealedIndex = -1) {
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'history-score';
     scoreDiv.innerText = score;
-    let hue = Math.max(0, Math.min(120, score * 1.8));
+    
+    // COLOR LOGIC: Score 60 = Green
+    let hue = Math.max(0, Math.min(120, score * 2.0));
+    
     scoreDiv.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
     
     row.appendChild(scoreDiv);

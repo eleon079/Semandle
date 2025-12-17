@@ -56,20 +56,24 @@ header {
 
 /* --- DASHBOARD FIXES --- */
 .dashboard {
-    display: flex; justify-content: space-between; align-items: stretch;
-    background-color: var(--dashboard-bg); border-radius: 6px; padding: 6px 8px;
-    height: auto; /* REMOVE fixed height (was 36px) */
+    display: flex; 
+    justify-content: space-between; 
+    align-items: stretch; /* Ensures height grows with content */
+    background-color: var(--dashboard-bg); 
+    border-radius: 6px; 
+    padding: 6px 8px;
+    height: auto; 
     min-height: 36px;
 }
 /* 3. Stack the semantic clues vertically */
 #top3-list {
     display: flex; 
-    flex-direction: column; /* Stack items vertically */
-    gap: 2px; 
-    font-size: 0.65rem; 
+    flex-direction: column; /* This is crucial for stacking 5 items */
+    gap: 1px; 
+    font-size: 0.65rem; /* Small font to fit 5 lines */
     font-weight: bold;
     color: var(--white); 
-    overflow: visible; /* Remove scroll */
+    overflow: visible; 
     white-space: normal;
 }
 .label { font-size: 0.55rem; color: #888; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; }
