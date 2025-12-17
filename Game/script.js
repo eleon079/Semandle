@@ -123,43 +123,49 @@ function handleKey(key) {
 }
 
 function submitGuess() {
-    const guessClean = currentInput.trim().toLowerCase();
+    try {
+        const guessClean = currentInput.trim().toLowerCase();
 
-    if (guessClean.length < 2) { shakeBoard(); showToast("Too short"); return; }
-    if (!gameDictionary.hasOwnProperty(guessClean)) { shakeBoard(); showToast("Not in word list"); return; }
-    if (usedWords.has(guessClean)) { shakeBoard(); showToast("Already used"); return; }
+        if (guessClean.length < 2) { shakeBoard(); showToast("Too short"); return; }
+        if (!gameDictionary.hasOwnProperty(guessClean)) { shakeBoard(); showToast("Not in word list"); return; }
+        if (usedWords.has(guessClean)) { shakeBoard(); showToast("Already used"); return; }
 
-    usedWords.add(guessClean);
-    guessCount++;
-    
-    const scores = gameDictionary[guessClean];
-    const score = scores[currentTargetIndex];
-    
-    // Update Top 3
-    bestGuesses.push({ word: guessClean, score: score });
-    bestGuesses.sort((a,b) => b.score - a.score);
-    if (bestGuesses.length > 3) bestGuesses.length = 3;
-    updateDashboard();
+        usedWords.add(guessClean);
+        guessCount++;
+        
+        const scores = gameDictionary[guessClean];
+        const score = scores[currentTargetIndex];
+        
+        // Update Top 3
+        bestGuesses.push({ word: guessClean, score: score });
+        bestGuesses.sort((a,b) => b.score - a.score);
+        if (bestGuesses.length > 3) bestGuesses.length = 3;
+        updateDashboard();
 
-    const targetWordString = currentTargetData.text.toLowerCase().padEnd(10, ' ');
-    const guessPadded = guessClean.padEnd(10, ' ');
+        const targetWordString = currentTargetData.text.toLowerCase().padEnd(10, ' ');
+        const guessPadded = guessClean.padEnd(10, ' ');
 
-    // Win Check
-    if (guessClean === currentTargetData.text.toLowerCase()) {
-        for(let i=0; i<10; i++) knownGreens[i] = guessPadded[i];
-        addHistoryRow(guessPadded, score, true); 
-        handleWin();
-        return;
+        // Win Check
+        if (guessClean === currentTargetData.text.toLowerCase()) {
+            for(let i=0; i<10; i++) knownGreens[i] = guessPadded[i];
+            addHistoryRow(guessPadded, score, true); 
+            handleWin();
+            return;
+        }
+
+        // Process Hints
+        processHintUpdate(guessPadded, targetWordString);
+        
+        addHistoryRow(guessPadded, score, false);
+        updateKeyboard();
+
+        currentInput = "";
+        renderActiveRow();
+        setTimeout(() => { scrollArea.scrollTop = scrollArea.scrollHeight; }, 10);
+    } catch (e) {
+        showToast("Error: " + e.message);
+        console.error(e);
     }
-
-    processHintUpdate(guessPadded, targetWordString);
-    
-    addHistoryRow(guessPadded, score, false);
-    updateKeyboard();
-
-    currentInput = "";
-    renderActiveRow();
-    setTimeout(() => { scrollArea.scrollTop = scrollArea.scrollHeight; }, 10);
 }
 
 function processHintUpdate(guess, target) {
@@ -187,7 +193,7 @@ function processHintUpdate(guess, target) {
         } 
         // 3. Grey Candidates (Strict Logic)
         else if (color === 'grey') {
-            // CRITICAL FIX: Only add as dead letter if the target does NOT contain this char
+            // CRITICAL: Only add as dead letter if the target does NOT contain this char
             if (!target.includes(char)) {
                 if (!knownGreys.has(char)) {
                     candidates.push({ type: 'grey', char: char });
@@ -207,7 +213,7 @@ function processHintUpdate(guess, target) {
             choice = candidates[Math.floor(Math.random() * candidates.length)];
         }
 
-        // Apply
+        // Apply and Notify
         let msg = "";
         if (choice.type === 'green') {
             knownGreens[choice.index] = choice.char;
@@ -233,9 +239,11 @@ function calculateColors(guess, target) {
     let tArr = target.split('');
     let gArr = guess.split('');
 
+    // Green Pass
     for(let i=0; i<10; i++) {
         if (gArr[i] === tArr[i]) { res[i] = 'green'; tArr[i] = null; gArr[i] = null; }
     }
+    // Yellow Pass
     for(let i=0; i<10; i++) {
         if (gArr[i] && tArr.includes(gArr[i])) { res[i] = 'yellow'; let idx = tArr.indexOf(gArr[i]); tArr[idx] = null; }
     }
@@ -247,6 +255,8 @@ function calculateColors(guess, target) {
 function renderActiveRow() {
     activeRow.innerHTML = '';
     const padded = currentInput.padEnd(10, ' ');
+    
+    // 1. Render Tiles
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
@@ -254,6 +264,8 @@ function renderActiveRow() {
         if (i === currentInput.length) div.classList.add('active-blink');
         activeRow.appendChild(div);
     }
+    
+    // 2. Render Ghost Spacer (Fixes alignment)
     let spacer = document.createElement('div');
     spacer.className = 'score-spacer';
     activeRow.appendChild(spacer);
@@ -274,7 +286,6 @@ function addHistoryRow(word, score, isWin) {
         if (isWin) {
             if(char !== ' ') colorClass = 'green';
         } else {
-            // Only color if it's a letter AND we know it
             if (char !== ' ') {
                 if (knownGreens[i] === char) colorClass = 'green';
                 else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
@@ -287,6 +298,7 @@ function addHistoryRow(word, score, isWin) {
         row.appendChild(div);
     }
 
+    // 3. Render Score
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'history-score';
     scoreDiv.innerText = score;
