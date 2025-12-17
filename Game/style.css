@@ -32,60 +32,58 @@ body {
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
 }
 
-/* --- COMPACT HEADER --- */
 header {
-    flex-shrink: 0; display: flex; flex-direction: column; gap: 4px;
-    border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 4px;
+    flex-shrink: 0; display: flex; flex-direction: column; gap: 8px;
+    border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 5px;
 }
 
-/* SMALLER SENTENCE DISPLAY */
 #sentence-display {
-    display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; padding: 2px 0;
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 2px 0;
 }
 .s-word {
-    padding: 0px 3px; border-radius: 2px; font-weight: bold;
-    /* Reduced font size for compactness */
-    font-size: 0.65rem; text-transform: uppercase;
+    padding: 1px 4px; border-radius: 3px; font-weight: bold;
+    font-size: 0.7rem; text-transform: uppercase;
 }
-.s-word.target-hidden { min-width: 20px; border-bottom: 1px solid #555; }
+.s-word.filler { color: #666; }
+.s-word.target-hidden {
+    background-color: #2a2a2a; color: transparent;
+    min-width: 30px; border-bottom: 2px solid #555;
+}
+.s-word.target-active {
+    background-color: #222; border: 1px solid var(--yellow); color: transparent;
+}
+.s-word.target-solved { background-color: var(--green); color: white; }
 
-/* --- VERTICAL DASHBOARD --- */
+/* --- DASHBOARD FIXES --- */
 .dashboard {
-    display: flex; justify-content: space-between; align-items: flex-start; /* Align top */
+    display: flex; justify-content: space-between; align-items: stretch;
     background-color: var(--dashboard-bg); border-radius: 6px; padding: 6px 8px;
-    /* Removed fixed height so it grows with the list */
-    min-height: 36px; 
+    height: auto; /* REMOVE fixed height (was 36px) */
+    min-height: 36px;
 }
-
-.top3-container {
-    display: flex; flex-direction: column; 
-    flex-grow: 1; margin-right: 10px; overflow: hidden; min-width: 0;
-}
-
-/* The list is now a column */
+/* 3. Stack the semantic clues vertically */
 #top3-list {
-    display: flex; flex-direction: column; gap: 2px; 
-    width: 100%; margin-top: 2px;
+    display: flex; 
+    flex-direction: column; /* Stack items vertically */
+    gap: 2px; 
+    font-size: 0.65rem; 
+    font-weight: bold;
+    color: var(--white); 
+    overflow: visible; /* Remove scroll */
+    white-space: normal;
 }
+.label { font-size: 0.55rem; color: #888; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; }
 
-/* Each item is a colored row */
-.top-word { 
-    display: flex; justify-content: space-between;
-    padding: 2px 6px; border-radius: 3px;
-    font-size: 0.7rem; font-weight: bold; 
-    color: #000; /* Black text for contrast on colored backgrounds */
-    text-shadow: none;
+/* Optional: Style the individual clue rows */
+.top-word {
+    display: block;
+    line-height: 1.1;
 }
 
 .guess-counter {
-    /* Keep the counter centered but stick to the top */
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
     min-width: 40px; border-left: 1px solid #333; padding-left: 6px; flex-shrink: 0;
-    height: 100%;
 }
-
-
-
 #total-guesses { font-size: 1rem; font-weight: bold; color: var(--white); line-height: 1; }
 
 /* --- BOARD GRID ALIGNMENT --- */
