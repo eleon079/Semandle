@@ -4,7 +4,7 @@ import requests
 import sys
 
 # --- CONFIGURATION ---
-SECRET_SENTENCE = "A synthetic Christmas substitute commissioned to replicate my body warmth while I am absent: Heated Blanket!"
+SECRET_SENTENCE = "My beloved koala, since your otter cannot always be nearby to radiate sufficient body heat during this frigid Christmas, please use this substitute to stay toasty: heated blanket !"
 
 def generate_data():
     print("1. Loading Language Model... (approx 10-20 seconds)")
