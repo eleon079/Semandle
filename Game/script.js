@@ -113,7 +113,7 @@ function updateDashboard() {
         
         // 2. Apply dynamic color based on score (50 = Green)
         // Logic: score * 2.4 ensures that 50 * 2.4 = 120 (Green)
-        let hue = Math.max(0, Math.min(120, bg.score * 2.4));
+        let hue = Math.max(0, Math.min(120, bg.score * 2.0));
         span.style.color = `hsl(${hue}, 70%, 60%)`;
         
         top3List.appendChild(span);
@@ -329,7 +329,7 @@ function addHistoryRow(word, score, isWin, revealedIndex = -1) {
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'history-score';
     scoreDiv.innerText = score;
-    let hue = Math.max(0, Math.min(120, score * 2.4));
+    let hue = Math.max(0, Math.min(120, score * 2.0));
     scoreDiv.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
     
     row.appendChild(scoreDiv);
