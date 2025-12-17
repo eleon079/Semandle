@@ -171,7 +171,11 @@ function submitGuess() {
     if (guessClean === currentTargetData.text.toLowerCase()) {
         for(let i=0; i<10; i++) knownGreens[i] = guessPadded[i];
         addHistoryRow(guessPadded, score, true, -1); 
-        handleWin();
+        // TEMPORARY BYPASS:
+        // Instead of calling handleWin(), jump straight to the next level
+        setTimeout(() => {
+            startLevel(currentTargetIndex + 1);
+        }, 500); // Small delay so you can see the green row before it resets
         return;
     }
 
