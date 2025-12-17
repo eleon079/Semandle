@@ -37,7 +37,6 @@ header {
     border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 5px;
 }
 
-/* SENTENCE */
 #sentence-display {
     display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 2px 0;
 }
@@ -104,12 +103,17 @@ header {
 
 .tile.green { background-color: var(--green); border-color: var(--green); }
 .tile.yellow { background-color: var(--yellow); border-color: var(--yellow); }
-/* Make grey distinct from empty black */
-.tile.grey { background-color: var(--grey); border-color: var(--grey); opacity: 0.4; }
+
+/* DISTINCT GREY STYLE */
+.tile.grey { 
+    background-color: var(--grey); 
+    border-color: var(--grey); 
+    opacity: 0.4; /* Faded to look "dead" */
+}
+
 .tile.filled { border-color: #888; }
 .tile.active-blink { border-color: var(--white); }
 
-/* Score & Spacer */
 .history-score {
     width: 32px; min-width: 32px; 
     height: 24px;
@@ -143,7 +147,8 @@ header {
 }
 .toast {
     background-color: var(--white); color: var(--black); padding: 8px 12px;
-    border-radius: 4px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.5); text-align: center;
+    border-radius: 4px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    text-align: center;
 }
 .shake { animation: shake 0.4s; }
 @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
