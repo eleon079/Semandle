@@ -54,11 +54,11 @@ header {
 }
 .s-word.target-solved { background-color: var(--green); color: white; }
 
-/* DASHBOARD */
+/* --- DASHBOARD FIXES --- */
 .dashboard {
     display: flex; justify-content: space-between; align-items: stretch;
     background-color: var(--dashboard-bg); border-radius: 6px; padding: 4px 8px;
-    height: 36px;
+    height: 36px; /* Slightly tighter */
 }
 .top3-container {
     display: flex; flex-direction: column; justify-content: center;
@@ -68,7 +68,7 @@ header {
 
 #top3-list {
     display: flex; gap: 6px; 
-    font-size: 0.65rem; 
+    font-size: 0.65rem; /* SMALLER FONT TO FIT WORDS */
     font-weight: bold;
     color: var(--white); overflow-x: auto; white-space: nowrap;
     scrollbar-width: none;
@@ -83,7 +83,7 @@ header {
 }
 #total-guesses { font-size: 1rem; font-weight: bold; color: var(--white); line-height: 1; }
 
-/* BOARD GRID */
+/* --- BOARD GRID ALIGNMENT --- */
 #board-scroll-area {
     flex: 1 1 auto; overflow-y: auto; min-height: 0;
     margin-bottom: 5px; padding-right: 2px;
@@ -103,19 +103,14 @@ header {
 
 .tile.green { background-color: var(--green); border-color: var(--green); }
 .tile.yellow { background-color: var(--yellow); border-color: var(--yellow); }
-
-/* DISTINCT GREY STYLE */
-.tile.grey { 
-    background-color: var(--grey); 
-    border-color: var(--grey); 
-    opacity: 0.4; /* Faded to look "dead" */
-}
-
+.tile.grey { background-color: var(--grey); border-color: var(--grey); }
 .tile.filled { border-color: #888; }
 .tile.active-blink { border-color: var(--white); }
 
+/* --- ALIGNMENT MAGIC --- */
+/* We force the score badge and the spacer to have the exact same rigid dimensions */
 .history-score {
-    width: 32px; min-width: 32px; 
+    width: 32px; min-width: 32px; /* Fixed */
     height: 24px;
     display: flex; justify-content: center; align-items: center;
     font-weight: bold; font-size: 0.75rem; border-radius: 4px; 
@@ -123,7 +118,7 @@ header {
 }
 
 .score-spacer {
-    width: 32px; min-width: 32px; 
+    width: 32px; min-width: 32px; /* Identical to history-score */
     height: 24px;
     margin-left: 4px;
     visibility: hidden;
@@ -148,7 +143,6 @@ header {
 .toast {
     background-color: var(--white); color: var(--black); padding: 8px 12px;
     border-radius: 4px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-    text-align: center;
 }
 .shake { animation: shake 0.4s; }
 @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
@@ -157,4 +151,3 @@ header {
 .hidden { display: none; }
 .modal-content { background: var(--black); border: 1px solid var(--border); padding: 25px; text-align: center; border-radius: 10px; width: 85%; }
 button.primary-btn { background-color: var(--green); color: white; border: none; padding: 12px 30px; margin-top: 15px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 1rem; }
-#modal-stats { margin-top: 10px; font-size: 0.9rem; color: #ccc; }

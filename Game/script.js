@@ -135,6 +135,7 @@ function submitGuess() {
     const scores = gameDictionary[guessClean];
     const score = scores[currentTargetIndex];
     
+    // Update Top 3
     bestGuesses.push({ word: guessClean, score: score });
     bestGuesses.sort((a,b) => b.score - a.score);
     if (bestGuesses.length > 3) bestGuesses.length = 3;
@@ -171,32 +172,25 @@ function processHintUpdate(guess, target) {
         
         const color = colors[i];
         
-        // 1. Green Candidates
         if (color === 'green') {
             if (knownGreens[i] !== char) {
                 candidates.push({ type: 'green', index: i, char: char });
             }
         } 
-        // 2. Yellow Candidates
         else if (color === 'yellow') {
             let key = `${i}-${char}`;
             if (!knownYellows.has(key)) {
                 candidates.push({ type: 'yellow', index: i, char: char, key: key });
             }
         } 
-        // 3. Grey Candidates (Strict Logic)
         else if (color === 'grey') {
-            // CRITICAL: Only add as dead letter if the target does NOT contain this char
-            if (!target.includes(char)) {
-                if (!knownGreys.has(char)) {
-                    candidates.push({ type: 'grey', char: char });
-                }
+            if (!knownGreys.has(char)) {
+                candidates.push({ type: 'grey', char: char });
             }
         }
     }
 
     if (candidates.length > 0) {
-        // Strict Priority: Non-Green First
         let nonGreens = candidates.filter(c => c.type !== 'green');
         let choice = null;
         
@@ -206,24 +200,9 @@ function processHintUpdate(guess, target) {
             choice = candidates[Math.floor(Math.random() * candidates.length)];
         }
 
-        // Apply and Notify
-        let msg = "";
-        if (choice.type === 'green') {
-            knownGreens[choice.index] = choice.char;
-            msg = `Clue: '${choice.char.toUpperCase()}' is correct at #${choice.index + 1}`;
-        } 
-        else if (choice.type === 'yellow') {
-            knownYellows.add(choice.key);
-            msg = `Clue: '${choice.char.toUpperCase()}' is in the word`;
-        } 
-        else if (choice.type === 'grey') {
-            knownGreys.add(choice.char);
-            msg = `Clue: '${choice.char.toUpperCase()}' is not in the word`;
-        }
-        
-        showToast(msg);
-    } else {
-        showToast("No new clues found!");
+        if (choice.type === 'green') knownGreens[choice.index] = choice.char;
+        else if (choice.type === 'yellow') knownYellows.add(choice.key);
+        else if (choice.type === 'grey') knownGreys.add(choice.char);
     }
 }
 
@@ -246,6 +225,8 @@ function calculateColors(guess, target) {
 function renderActiveRow() {
     activeRow.innerHTML = '';
     const padded = currentInput.padEnd(10, ' ');
+    
+    // 1. Render Tiles
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
@@ -253,6 +234,8 @@ function renderActiveRow() {
         if (i === currentInput.length) div.classList.add('active-blink');
         activeRow.appendChild(div);
     }
+    
+    // 2. Render Ghost Spacer (Fixes alignment)
     let spacer = document.createElement('div');
     spacer.className = 'score-spacer';
     activeRow.appendChild(spacer);
@@ -273,6 +256,7 @@ function addHistoryRow(word, score, isWin) {
         if (isWin) {
             if(char !== ' ') colorClass = 'green';
         } else {
+            // Only color if it's a letter AND we know it
             if (char !== ' ') {
                 if (knownGreens[i] === char) colorClass = 'green';
                 else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
@@ -284,6 +268,7 @@ function addHistoryRow(word, score, isWin) {
         row.appendChild(div);
     }
 
+    // 3. Render Score
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'history-score';
     scoreDiv.innerText = score;
@@ -342,7 +327,7 @@ function resetKeyboard() {
 function showToast(msg) {
     let t = document.createElement('div'); t.className = 'toast'; t.innerText = msg;
     messageContainer.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 2000);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 1500);
 }
 
 function shakeBoard() {
@@ -359,7 +344,7 @@ function handleWin() {
     action.innerHTML = '';
     
     document.getElementById('modal-title').innerText = "Word Found!";
-    msg.innerText = `You found "${currentTargetData.text.toUpperCase()}"!`;
+    msg.innerText = `You found "${currentTargetData.text.toUpperCase()}"`;
     stats.innerText = `Guesses: ${guessCount}`;
     
     let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Next Word";
