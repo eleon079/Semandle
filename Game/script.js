@@ -7,15 +7,12 @@ let currentTargetIndex = 0;
 let currentTargetData = null; 
 let currentInput = ""; 
 let guessCount = 0;
-let usedWords = new Set(); // To prevent reuse
-let bestGuesses = []; // Stores {word, score} for Top 3
+let usedWords = new Set(); 
+let bestGuesses = []; 
 
-// --- CLUE STORAGE (The "Memory") ---
-// knownGreens: Array of chars or null. e.g. [null, 'a', null, 't'...]
+// --- CLUE STORAGE ---
 let knownGreens = Array(10).fill(null);
-// knownYellows: Set of strings "index-char". e.g. "0-e" means we know 'e' is yellow at index 0.
 let knownYellows = new Set();
-// knownGreys: Set of chars. e.g. {'z', 'x'}
 let knownGreys = new Set();
 
 // --- DOM Elements ---
@@ -25,6 +22,7 @@ const sentenceDisplay = document.getElementById('sentence-display');
 const loadingScreen = document.getElementById('loading-screen');
 const top3List = document.getElementById('top3-list');
 const totalGuessesDisplay = document.getElementById('total-guesses');
+const scrollArea = document.getElementById('board-scroll-area');
 
 // --- Initialization ---
 function initGame() {
@@ -51,29 +49,17 @@ function startLevel(targetId) {
     currentTargetIndex = targetId;
     currentTargetData = nextTarget;
     
-    // Reset Board State
+    // Reset State
     currentInput = "";
     guessCount = 0;
     usedWords = new Set();
     bestGuesses = [];
-    
-    // Reset Clue Memory
     knownGreens = Array(10).fill(null);
     knownYellows = new Set();
     knownGreys = new Set();
 
     historyContainer.innerHTML = "";
     updateDashboard();
-    
-    // Auto-reveal spaces in the target word
-    // (We treat spaces as "Green" immediately)
-    let targetWordPadded = nextTarget.text.toLowerCase().padEnd(10, ' ');
-    for(let i=0; i<10; i++) {
-        if(targetWordPadded[i] === ' ') {
-            knownGreens[i] = ' '; 
-        }
-    }
-
     renderSentence();
     renderActiveRow();
     resetKeyboard();
@@ -102,7 +88,6 @@ function renderSentence() {
             }
         }
         sentenceDisplay.appendChild(span);
-        // Add zero-width space or small margin via CSS to separate
     });
 }
 
@@ -144,7 +129,6 @@ function submitGuess() {
     if (!gameDictionary.hasOwnProperty(guessClean)) { shakeBoard(); showToast("Not in word list"); return; }
     if (usedWords.has(guessClean)) { shakeBoard(); showToast("Already used"); return; }
 
-    // Register Guess
     usedWords.add(guessClean);
     guessCount++;
     
@@ -162,9 +146,9 @@ function submitGuess() {
 
     // Win Check
     if (guessClean === currentTargetData.text.toLowerCase()) {
-        // Reveal all greens for visual satisfaction
+        // Reveal greens for win
         for(let i=0; i<10; i++) knownGreens[i] = guessPadded[i];
-        addHistoryRow(guessPadded, score);
+        addHistoryRow(guessPadded, score, true); // true = IS WIN
         handleWin();
         return;
     }
@@ -172,55 +156,46 @@ function submitGuess() {
     // Process Hints
     processHintUpdate(guessPadded, targetWordString);
     
-    addHistoryRow(guessPadded, score);
+    addHistoryRow(guessPadded, score, false);
     updateKeyboard();
 
     currentInput = "";
     renderActiveRow();
-    const scrollArea = document.getElementById('board-scroll-area');
-    scrollArea.scrollTop = scrollArea.scrollHeight;
+    // Scroll to bottom
+    setTimeout(() => { scrollArea.scrollTop = scrollArea.scrollHeight; }, 10);
 }
 
 // --- CORE HINT LOGIC ---
 
 function processHintUpdate(guess, target) {
-    // 1. Calculate raw Wordle colors for this specific guess
     let colors = calculateColors(guess, target);
-    
     let candidates = [];
 
-    // 2. Identify "New Information" candidates
     for (let i = 0; i < 10; i++) {
         const char = guess[i];
-        if (char === ' ') continue; 
+        if (char === ' ') continue; // Ignore spaces!
         
         const color = colors[i];
         
         if (color === 'green') {
-            // It's a candidate if we didn't already know this position is this letter
             if (knownGreens[i] !== char) {
                 candidates.push({ type: 'green', index: i, char: char });
             }
         } 
         else if (color === 'yellow') {
-            // It's a candidate if we didn't already know this specific tile is yellow for this char
             let key = `${i}-${char}`;
             if (!knownYellows.has(key)) {
                 candidates.push({ type: 'yellow', index: i, char: char, key: key });
             }
         } 
         else if (color === 'grey') {
-            // It's a candidate if we didn't already know this letter is grey
             if (!knownGreys.has(char)) {
                 candidates.push({ type: 'grey', char: char });
             }
         }
     }
 
-    // 3. Select ONE new hint to reveal (if any exist)
     if (candidates.length > 0) {
-        // Weighting: Prefer Grey/Yellow over Green to extend gameplay
-        // Filter out greens unless they are the only option
         let nonGreens = candidates.filter(c => c.type !== 'green');
         
         let choice = null;
@@ -230,14 +205,9 @@ function processHintUpdate(guess, target) {
             choice = candidates[Math.floor(Math.random() * candidates.length)];
         }
 
-        // Apply to Memory
-        if (choice.type === 'green') {
-            knownGreens[choice.index] = choice.char;
-        } else if (choice.type === 'yellow') {
-            knownYellows.add(choice.key);
-        } else if (choice.type === 'grey') {
-            knownGreys.add(choice.char);
-        }
+        if (choice.type === 'green') knownGreens[choice.index] = choice.char;
+        else if (choice.type === 'yellow') knownYellows.add(choice.key);
+        else if (choice.type === 'grey') knownGreys.add(choice.char);
     }
 }
 
@@ -263,68 +233,68 @@ function renderActiveRow() {
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
-        // Match width of history tiles for alignment
         if (padded[i] !== ' ') { div.innerText = padded[i]; div.classList.add('filled'); }
         if (i === currentInput.length) div.classList.add('active-blink');
         activeRow.appendChild(div);
     }
+    // GHOST SPACER for alignment
+    let spacer = document.createElement('div');
+    spacer.className = 'score-spacer';
+    activeRow.appendChild(spacer);
 }
 
-function addHistoryRow(word, score) {
+function addHistoryRow(word, score, isWin) {
     let row = document.createElement('div');
     row.className = 'tile-row';
     
-    // Render based on CUMULATIVE knowledge
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
         let char = word[i];
         if (char !== ' ') div.innerText = char;
 
-        // Apply Colors based on stored memory
-        if (knownGreens[i] === char) {
-            div.classList.add('green');
-        } 
-        else if (knownYellows.has(`${i}-${char}`)) {
-            div.classList.add('yellow');
-        } 
-        else if (knownGreys.has(char)) {
-            div.classList.add('grey');
+        // --- COLORING LOGIC ---
+        // If WIN: Show everything (including green spaces if you want, but sticking to no spaces for now)
+        // If NOT WIN: Show from memory.
+        
+        let colorClass = null;
+
+        if (isWin) {
+            colorClass = 'green';
+        } else {
+            // NEVER color spaces unless it's a win
+            if (char !== ' ') {
+                if (knownGreens[i] === char) colorClass = 'green';
+                else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
+                else if (knownGreys.has(char)) colorClass = 'grey';
+            }
         }
 
+        if (colorClass) div.classList.add(colorClass);
         row.appendChild(div);
     }
 
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'history-score';
-    // Just show score number quietly
-    // scoreDiv.innerText = score; 
-    // Actually, user replaced score with guess count, so let's hide score in row
-    // or keep it subtle. Let's keep it subtle.
-    row.appendChild(scoreDiv);
+    scoreDiv.innerText = score;
+    // Dynamic color for score text
+    let hue = Math.max(0, Math.min(120, score * 1.2));
+    scoreDiv.style.color = `hsl(${hue}, 80%, 60%)`;
     
+    row.appendChild(scoreDiv);
     historyContainer.appendChild(row);
 }
 
 function updateKeyboard() {
-    // Standard Wordle Keyboard Coloring
-    // Green > Yellow > Grey
-    // We scan our Memory to update keys
-    
-    // 1. Greys
     knownGreys.forEach(char => {
         let btn = document.getElementById('key-'+char);
         if(btn) btn.className = 'key grey';
     });
-
-    // 2. Yellows (Iterate knownYellows set)
     knownYellows.forEach(val => {
         let char = val.split('-')[1];
         let btn = document.getElementById('key-'+char);
         if(btn && !btn.classList.contains('green')) btn.className = 'key yellow';
     });
-
-    // 3. Greens (Iterate knownGreens array)
     knownGreens.forEach(char => {
         if(char && char !== ' ') {
             let btn = document.getElementById('key-'+char);
@@ -393,7 +363,7 @@ function handleGrandWin() {
     modal.classList.remove('hidden');
     document.getElementById('modal-title').innerText = "GIFT REVEALED";
     document.getElementById('modal-msg').innerText = `The message is:\n"${gameStructure.map(x=>x.text).join(' ')}"`;
-    document.getElementById('modal-stats').innerText = `Total Guesses: ${guessCount}`; // Note: This resets per level in current logic, if you want grand total, need global var.
+    document.getElementById('modal-stats').innerText = ""; 
     document.getElementById('modal-next-action').innerHTML = '';
     let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Close";
     btn.onclick = () => modal.classList.add('hidden');

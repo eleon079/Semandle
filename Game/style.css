@@ -19,7 +19,6 @@ body {
     overflow: hidden; position: fixed;
 }
 
-/* --- LOADING --- */
 #loading-screen {
     position: fixed; top:0; left:0; width:100%; height:100%;
     background: var(--black); z-index: 9999;
@@ -27,7 +26,6 @@ body {
 }
 .loader-content { text-align: center; color: #888; }
 
-/* --- LAYOUT --- */
 .game-container {
     display: flex; flex-direction: column; height: 100%; max-width: 500px; margin: 0 auto;
     padding: 5px 10px;
@@ -35,21 +33,17 @@ body {
 }
 
 header {
-    flex-shrink: 0;
-    display: flex; flex-direction: column; gap: 5px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 5px; margin-bottom: 5px;
+    flex-shrink: 0; display: flex; flex-direction: column; gap: 8px;
+    border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 5px;
 }
 
-/* --- SENTENCE (Smaller now) --- */
+/* SENTENCE */
 #sentence-display {
-    display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
-    padding: 2px 0;
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 2px 0;
 }
 .s-word {
     padding: 1px 4px; border-radius: 3px; font-weight: bold;
-    font-size: 0.8rem; /* Smaller font */
-    text-transform: uppercase;
+    font-size: 0.8rem; text-transform: uppercase;
 }
 .s-word.filler { color: #666; }
 .s-word.target-hidden {
@@ -61,47 +55,37 @@ header {
 }
 .s-word.target-solved { background-color: var(--green); color: white; }
 
-/* --- DASHBOARD (Top 3 & Count) --- */
+/* DASHBOARD */
 .dashboard {
     display: flex; justify-content: space-between; align-items: stretch;
-    background-color: var(--dashboard-bg);
-    border-radius: 6px; padding: 5px 8px;
-    height: 40px; /* Fixed height for stability */
+    background-color: var(--dashboard-bg); border-radius: 6px; padding: 5px 8px;
+    height: 40px;
 }
-
 .top3-container {
     display: flex; flex-direction: column; justify-content: center;
-    flex-grow: 1; margin-right: 10px;
+    flex-grow: 1; margin-right: 10px; overflow: hidden;
 }
 .label { font-size: 0.6rem; color: #888; font-weight: bold; letter-spacing: 1px; }
-
 #top3-list {
     display: flex; gap: 8px; font-size: 0.85rem; font-weight: bold;
     color: var(--white); overflow: hidden; white-space: nowrap;
 }
-.top-word { color: #4ade80; } /* Light green text */
-
+.top-word { color: #4ade80; }
 .guess-counter {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     min-width: 50px; border-left: 1px solid #333; padding-left: 8px;
 }
 #total-guesses { font-size: 1.1rem; font-weight: bold; color: var(--white); line-height: 1; }
 
-/* --- BOARD GRID --- */
-/* This ensures active row and history rows line up perfectly */
-.tile-row {
-    display: flex; justify-content: center; gap: 3px;
-    height: 32px; margin-bottom: 3px;
-    width: 100%;
-}
-
+/* BOARD GRID */
 #board-scroll-area {
     flex: 1 1 auto; overflow-y: auto; min-height: 0;
     margin-bottom: 5px; padding-right: 2px;
 }
 
-.active-row-container {
-    flex-shrink: 0; margin-bottom: 5px;
+.tile-row {
+    display: flex; justify-content: center; gap: 3px;
+    height: 32px; margin-bottom: 4px; width: 100%;
 }
 
 .tile {
@@ -110,24 +94,28 @@ header {
     display: flex; justify-content: center; align-items: center;
     font-weight: 700; font-size: 1rem; text-transform: uppercase;
 }
+
+/* Colors */
 .tile.green { background-color: var(--green); border-color: var(--green); }
 .tile.yellow { background-color: var(--yellow); border-color: var(--yellow); }
 .tile.grey { background-color: var(--grey); border-color: var(--grey); }
 .tile.filled { border-color: #888; }
 .tile.active-blink { border-color: var(--white); }
 
-/* History Score (Now just small text on right) */
+/* Score Badge (Right Side) */
 .history-score {
-    width: 25px; font-size: 0.7rem; color: #888;
-    display: flex; align-items: center; justify-content: flex-end;
+    width: 30px; display: flex; justify-content: center; align-items: center;
+    font-weight: bold; font-size: 0.75rem; border-radius: 4px; margin-left: 4px; color: #000;
 }
+/* Spacer for Active Row to match score width */
+.score-spacer { width: 30px; margin-left: 4px; }
 
-/* --- KEYBOARD --- */
+/* KEYBOARD */
 #keyboard-container { flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
 .kb-row { display: flex; justify-content: center; gap: 3px; width: 100%; }
 .key {
     background-color: #818384; color: white; border: none; border-radius: 4px;
-    height: 42px; flex: 1; font-weight: bold; cursor: pointer; font-size: 0.9rem;
+    height: 44px; flex: 1; font-weight: bold; cursor: pointer; font-size: 0.9rem;
     display: flex; justify-content: center; align-items: center; padding: 0;
 }
 .key.wide { flex: 1.5; font-size: 0.8rem; }
@@ -151,3 +139,4 @@ header {
 .hidden { display: none; }
 .modal-content { background: var(--black); border: 1px solid var(--border); padding: 25px; text-align: center; border-radius: 10px; width: 85%; }
 button.primary-btn { background-color: var(--green); color: white; border: none; padding: 12px 30px; margin-top: 15px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+#modal-stats { margin-top: 10px; font-size: 0.9rem; color: #ccc; }
