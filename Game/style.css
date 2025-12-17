@@ -114,19 +114,12 @@ header {
 .tile.filled { border-color: #888; }
 .tile.active-blink { border-color: var(--white); }
 
-/* --- NEW STROKE EFFECT (Replaces Pop) --- */
+/* --- NEW STROKE EFFECT --- */
 .tile.new-reveal {
-    /* Create a thick white inner stroke */
+    /* Thick white inner stroke, no animation */
     box-shadow: inset 0 0 0 3px #ffffff; 
-    border-color: transparent; /* Hide original border to emphasize the inset */
+    border-color: transparent; 
     z-index: 10;
-    animation: pulseBorder 1.5s infinite;
-}
-
-@keyframes pulseBorder {
-    0% { box-shadow: inset 0 0 0 3px #ffffff; }
-    50% { box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.5); }
-    100% { box-shadow: inset 0 0 0 3px #ffffff; }
 }
 
 
