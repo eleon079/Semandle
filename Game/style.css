@@ -29,7 +29,7 @@ body {
 .game-container {
     display: flex; flex-direction: column; height: 100%; max-width: 500px; margin: 0 auto;
     padding: 5px 10px;
-    padding-bottom: calc(5px + env(safe-area-inset-bottom));
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
 }
 
 header {
@@ -84,8 +84,8 @@ header {
 }
 
 .tile-row {
-    display: flex; justify-content: center; gap: 3px;
-    height: 32px; margin-bottom: 4px; width: 100%;
+    display: flex; justify-content: center; align-items: center;
+    gap: 3px; height: 32px; margin-bottom: 4px; width: 100%;
 }
 
 .tile {
@@ -95,20 +95,28 @@ header {
     font-weight: 700; font-size: 1rem; text-transform: uppercase;
 }
 
-/* Colors */
 .tile.green { background-color: var(--green); border-color: var(--green); }
 .tile.yellow { background-color: var(--yellow); border-color: var(--yellow); }
 .tile.grey { background-color: var(--grey); border-color: var(--grey); }
 .tile.filled { border-color: #888; }
 .tile.active-blink { border-color: var(--white); }
 
-/* Score Badge (Right Side) */
+/* --- SCORE BADGE & SPACER (Critical for alignment) --- */
 .history-score {
-    width: 30px; display: flex; justify-content: center; align-items: center;
-    font-weight: bold; font-size: 0.75rem; border-radius: 4px; margin-left: 4px; color: #000;
+    width: 35px; /* Fixed Width */
+    height: 24px;
+    display: flex; justify-content: center; align-items: center;
+    font-weight: bold; font-size: 0.75rem; border-radius: 4px; 
+    margin-left: 6px; color: #000;
+    flex-shrink: 0; /* Prevent squishing */
 }
-/* Spacer for Active Row to match score width */
-.score-spacer { width: 30px; margin-left: 4px; }
+
+.score-spacer {
+    width: 35px; /* Matches score width */
+    height: 24px;
+    margin-left: 6px;
+    flex-shrink: 0; /* Prevent squishing */
+}
 
 /* KEYBOARD */
 #keyboard-container { flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
@@ -139,4 +147,3 @@ header {
 .hidden { display: none; }
 .modal-content { background: var(--black); border: 1px solid var(--border); padding: 25px; text-align: center; border-radius: 10px; width: 85%; }
 button.primary-btn { background-color: var(--green); color: white; border: none; padding: 12px 30px; margin-top: 15px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 1rem; }
-#modal-stats { margin-top: 10px; font-size: 0.9rem; color: #ccc; }

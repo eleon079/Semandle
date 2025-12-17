@@ -146,14 +146,12 @@ function submitGuess() {
 
     // Win Check
     if (guessClean === currentTargetData.text.toLowerCase()) {
-        // Reveal greens for win
         for(let i=0; i<10; i++) knownGreens[i] = guessPadded[i];
-        addHistoryRow(guessPadded, score, true); // true = IS WIN
+        addHistoryRow(guessPadded, score, true); 
         handleWin();
         return;
     }
 
-    // Process Hints
     processHintUpdate(guessPadded, targetWordString);
     
     addHistoryRow(guessPadded, score, false);
@@ -161,11 +159,8 @@ function submitGuess() {
 
     currentInput = "";
     renderActiveRow();
-    // Scroll to bottom
     setTimeout(() => { scrollArea.scrollTop = scrollArea.scrollHeight; }, 10);
 }
-
-// --- CORE HINT LOGIC ---
 
 function processHintUpdate(guess, target) {
     let colors = calculateColors(guess, target);
@@ -173,7 +168,7 @@ function processHintUpdate(guess, target) {
 
     for (let i = 0; i < 10; i++) {
         const char = guess[i];
-        if (char === ' ') continue; // Ignore spaces!
+        if (char === ' ') continue; 
         
         const color = colors[i];
         
@@ -196,9 +191,10 @@ function processHintUpdate(guess, target) {
     }
 
     if (candidates.length > 0) {
+        // Strict Priority: Non-Green First
         let nonGreens = candidates.filter(c => c.type !== 'green');
-        
         let choice = null;
+        
         if (nonGreens.length > 0) {
             choice = nonGreens[Math.floor(Math.random() * nonGreens.length)];
         } else {
@@ -230,6 +226,8 @@ function calculateColors(guess, target) {
 function renderActiveRow() {
     activeRow.innerHTML = '';
     const padded = currentInput.padEnd(10, ' ');
+    
+    // 1. Render Tiles
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
@@ -237,7 +235,8 @@ function renderActiveRow() {
         if (i === currentInput.length) div.classList.add('active-blink');
         activeRow.appendChild(div);
     }
-    // GHOST SPACER for alignment
+    
+    // 2. Render Spacer (Fixes alignment with history score)
     let spacer = document.createElement('div');
     spacer.className = 'score-spacer';
     activeRow.appendChild(spacer);
@@ -253,16 +252,12 @@ function addHistoryRow(word, score, isWin) {
         let char = word[i];
         if (char !== ' ') div.innerText = char;
 
-        // --- COLORING LOGIC ---
-        // If WIN: Show everything (including green spaces if you want, but sticking to no spaces for now)
-        // If NOT WIN: Show from memory.
-        
         let colorClass = null;
-
+        
         if (isWin) {
-            colorClass = 'green';
+            if(char !== ' ') colorClass = 'green';
         } else {
-            // NEVER color spaces unless it's a win
+            // Only color if it's a letter AND we know it
             if (char !== ' ') {
                 if (knownGreens[i] === char) colorClass = 'green';
                 else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
@@ -274,14 +269,14 @@ function addHistoryRow(word, score, isWin) {
         row.appendChild(div);
     }
 
+    // 3. Render Score
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'history-score';
     scoreDiv.innerText = score;
-    // Dynamic color for score text
     let hue = Math.max(0, Math.min(120, score * 1.2));
-    scoreDiv.style.color = `hsl(${hue}, 80%, 60%)`;
-    
+    scoreDiv.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
     row.appendChild(scoreDiv);
+    
     historyContainer.appendChild(row);
 }
 
@@ -343,15 +338,12 @@ function shakeBoard() {
 function handleWin() {
     const modal = document.getElementById('modal');
     const msg = document.getElementById('modal-msg');
-    const stats = document.getElementById('modal-stats');
     const action = document.getElementById('modal-next-action');
-    
     modal.classList.remove('hidden');
     action.innerHTML = '';
     
     document.getElementById('modal-title').innerText = "Word Found!";
-    msg.innerText = `You found "${currentTargetData.text.toUpperCase()}"`;
-    stats.innerText = `Guesses: ${guessCount}`;
+    msg.innerText = `You found "${currentTargetData.text.toUpperCase()}"!`;
     
     let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Next Word";
     btn.onclick = () => { modal.classList.add('hidden'); startLevel(currentTargetIndex + 1); };
@@ -363,7 +355,7 @@ function handleGrandWin() {
     modal.classList.remove('hidden');
     document.getElementById('modal-title').innerText = "GIFT REVEALED";
     document.getElementById('modal-msg').innerText = `The message is:\n"${gameStructure.map(x=>x.text).join(' ')}"`;
-    document.getElementById('modal-stats').innerText = ""; 
+    document.getElementById('modal-stats').innerText = `Total Guesses: ${guessCount}`;
     document.getElementById('modal-next-action').innerHTML = '';
     let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Close";
     btn.onclick = () => modal.classList.add('hidden');
