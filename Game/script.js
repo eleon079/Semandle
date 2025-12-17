@@ -40,13 +40,23 @@ function initGame() {
 
 // --- Level Logic ---
 function startLevel(targetId) {
+    // Find the next item in the structure
     let nextTarget = gameStructure.find(item => item.id === targetId);
     
+    // 1. If no target is found, we've reached the end -> Grand Win
     if (!nextTarget) {
         handleGrandWin();
         return;
     }
 
+    // 2. NEW: If this item is a 'filler', skip it immediately!
+    // We recursively call startLevel with the next ID.
+    if (nextTarget.type === 'filler') {
+        startLevel(targetId + 1);
+        return;
+    }
+
+    // 3. Normal Level Setup (Only runs if it's NOT a filler)
     currentTargetIndex = targetId;
     currentTargetData = nextTarget;
     
@@ -58,7 +68,6 @@ function startLevel(targetId) {
     knownGreens = Array(10).fill(null);
     knownYellows = new Set();
     knownGreys = new Set();
-    // REMOVED: knownFoundLetters reset
 
     historyContainer.innerHTML = "";
     updateDashboard();
