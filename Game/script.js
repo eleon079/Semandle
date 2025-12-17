@@ -184,14 +184,17 @@ function processHintUpdate(guess, target) {
             }
         } 
         else if (color === 'grey') {
-            if (!knownGreys.has(char)) {
-                candidates.push({ type: 'grey', char: char });
+            // CRITICAL FIX: Only mark as Dead Letter if it is NOT in the target word at all.
+            // If it IS in the target (but grey here due to being a duplicate), ignore it.
+            if (!target.includes(char)) {
+                if (!knownGreys.has(char)) {
+                    candidates.push({ type: 'grey', char: char });
+                }
             }
         }
     }
 
     if (candidates.length > 0) {
-        // Strict Priority: Non-Green First
         let nonGreens = candidates.filter(c => c.type !== 'green');
         let choice = null;
         
@@ -227,7 +230,6 @@ function renderActiveRow() {
     activeRow.innerHTML = '';
     const padded = currentInput.padEnd(10, ' ');
     
-    // 1. Render Tiles
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
@@ -236,7 +238,6 @@ function renderActiveRow() {
         activeRow.appendChild(div);
     }
     
-    // 2. Render Spacer (Fixes alignment with history score)
     let spacer = document.createElement('div');
     spacer.className = 'score-spacer';
     activeRow.appendChild(spacer);
@@ -257,10 +258,11 @@ function addHistoryRow(word, score, isWin) {
         if (isWin) {
             if(char !== ' ') colorClass = 'green';
         } else {
-            // Only color if it's a letter AND we know it
             if (char !== ' ') {
                 if (knownGreens[i] === char) colorClass = 'green';
                 else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
+                // Only show GREY if the letter is actually a Dead Letter
+                // (This fixes the visual bug where good letters looked grey)
                 else if (knownGreys.has(char)) colorClass = 'grey';
             }
         }
@@ -269,14 +271,13 @@ function addHistoryRow(word, score, isWin) {
         row.appendChild(div);
     }
 
-    // 3. Render Score
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'history-score';
     scoreDiv.innerText = score;
     let hue = Math.max(0, Math.min(120, score * 1.2));
     scoreDiv.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
-    row.appendChild(scoreDiv);
     
+    row.appendChild(scoreDiv);
     historyContainer.appendChild(row);
 }
 
@@ -338,12 +339,15 @@ function shakeBoard() {
 function handleWin() {
     const modal = document.getElementById('modal');
     const msg = document.getElementById('modal-msg');
+    const stats = document.getElementById('modal-stats');
     const action = document.getElementById('modal-next-action');
+    
     modal.classList.remove('hidden');
     action.innerHTML = '';
     
     document.getElementById('modal-title').innerText = "Word Found!";
     msg.innerText = `You found "${currentTargetData.text.toUpperCase()}"!`;
+    stats.innerText = `Guesses: ${guessCount}`;
     
     let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Next Word";
     btn.onclick = () => { modal.classList.add('hidden'); startLevel(currentTargetIndex + 1); };
@@ -355,7 +359,7 @@ function handleGrandWin() {
     modal.classList.remove('hidden');
     document.getElementById('modal-title').innerText = "GIFT REVEALED";
     document.getElementById('modal-msg').innerText = `The message is:\n"${gameStructure.map(x=>x.text).join(' ')}"`;
-    document.getElementById('modal-stats').innerText = `Total Guesses: ${guessCount}`;
+    document.getElementById('modal-stats').innerText = ""; 
     document.getElementById('modal-next-action').innerHTML = '';
     let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Close";
     btn.onclick = () => modal.classList.add('hidden');
