@@ -387,35 +387,52 @@ function shakeBoard() {
     activeRow.classList.add('shake'); setTimeout(() => activeRow.classList.remove('shake'), 500);
 }
 
+let autoNextTimer = null; // Global variable to track the timer
+
 function handleWin() {
     const modal = document.getElementById('modal');
     const msg = document.getElementById('modal-msg');
-    const stats = document.getElementById('modal-stats');
     const action = document.getElementById('modal-next-action');
     
+    // Clear any previous timers to prevent memory leaks or double-skipping
+    if (autoNextTimer) {
+        clearInterval(autoNextTimer);
+        autoNextTimer = null;
+    }
+
     modal.classList.remove('hidden');
     action.innerHTML = '';
     
     document.getElementById('modal-title').innerText = "Word Found!";
-    msg.innerText = `You found "${currentTargetData.text.toUpperCase()}"`;
-    stats.innerText = `Guesses: ${guessCount}`;
     
-    let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Next Word";
-    btn.onclick = () => { modal.classList.add('hidden'); startLevel(currentTargetIndex + 1); };
-    action.appendChild(btn);
-}
+    // Display the word found and the number of tries (guessCount)
+    msg.innerHTML = `You found "<strong>${currentTargetData.text.toUpperCase()}</strong>"<br>Tries: ${guessCount}`;
+    
+    // Create the button
+    let btn = document.createElement('button'); 
+    btn.className = 'primary-btn'; 
+    
+    let timeLeft = 5; // Set to 5 seconds as requested
+    btn.innerText = `Next Word (${timeLeft}s)`;
+    
+    const proceed = () => {
+        if (autoNextTimer) clearInterval(autoNextTimer);
+        modal.classList.add('hidden');
+        startLevel(currentTargetIndex + 1);
+    };
 
-function handleGrandWin() {
-    const modal = document.getElementById('modal');
-    modal.classList.remove('hidden');
-    document.getElementById('modal-title').innerText = "GIFT REVEALED";
-    document.getElementById('modal-msg').innerText = `The message is:\n"${gameStructure.map(x=>x.text).join(' ')}"`;
-    document.getElementById('modal-stats').innerText = ""; 
-    document.getElementById('modal-next-action').innerHTML = '';
-    let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Close";
-    btn.onclick = () => modal.classList.add('hidden');
-    document.getElementById('modal-next-action').appendChild(btn);
-    currentTargetIndex = 999; renderSentence();
+    btn.onclick = proceed;
+    action.appendChild(btn);
+
+    // Auto-countdown logic
+    autoNextTimer = setInterval(() => {
+        timeLeft--;
+        btn.innerText = `Next Word (${timeLeft}s)`;
+        
+        if (timeLeft <= 0) {
+            proceed();
+        }
+    }, 1000);
 }
 
 // Start
