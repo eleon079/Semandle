@@ -170,6 +170,10 @@ function processHintUpdate(guess, target) {
     let colors = calculateColors(guess, target);
     let candidates = [];
 
+    // Check if the character is ACTUALLY in the target (ignoring position)
+    // We use this to prevent adding 'S' to knownGreys if it's just an excess duplicate
+    const targetHasChar = (c) => target.indexOf(c) !== -1;
+
     for (let i = 0; i < 10; i++) {
         const char = guess[i];
         if (char === ' ') continue; 
@@ -188,7 +192,9 @@ function processHintUpdate(guess, target) {
             }
         } 
         else if (color === 'grey') {
-            if (!knownGreys.has(char)) {
+            // FIX: Only treat as a "Grey Reveal" candidate if the letter is NOT in the target at all.
+            // This prevents "excess duplicates" from poisoning the knownGreys list.
+            if (!knownGreys.has(char) && !targetHasChar(char)) {
                 candidates.push({ type: 'grey', index: i, char: char });
             }
         }
@@ -200,11 +206,11 @@ function processHintUpdate(guess, target) {
         if (choice.type === 'green') {
             knownGreens[choice.index] = choice.char;
             knownYellows.delete(`${choice.index}-${choice.char}`);
-            knownFoundLetters.add(choice.char); // Mark S as "Found"
+            knownFoundLetters.add(choice.char); 
         }
         else if (choice.type === 'yellow') {
             knownYellows.add(choice.key);
-            knownFoundLetters.add(choice.char); // Mark S as "Found"
+            knownFoundLetters.add(choice.char); 
         }
         else if (choice.type === 'grey') {
             knownGreys.add(choice.char);
@@ -285,23 +291,23 @@ function addHistoryRow(word, score, isWin, revealedIndex = -1) {
                 if (knownGreens[i] === char) {
                     colorClass = 'green';
                 }
-                // 2. Is it the SPECIFIC tile we just revealed this turn? (Force true color)
+                // 2. Is it the SPECIFIC tile we just revealed?
                 else if (i === revealedIndex) {
-                    // We need to know what color this specific tile *actually* is to render it correctly
-                    // We can cheat slightly and look at the global known state which we just updated
                      if (knownGreens[i] === char) colorClass = 'green';
                      else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
                      else if (knownGreys.has(char)) colorClass = 'grey';
-                     else if (knownFoundLetters.has(char)) colorClass = 'yellow'; // Fallback
+                     else if (knownFoundLetters.has(char)) colorClass = 'yellow'; 
                 }
                 // 3. General Logic for past clues
                 else {
-                    if (knownGreys.has(char)) {
-                        colorClass = 'grey';
-                    }
-                    // FIX: If we know the letter exists in the word (from ANY previous clue), make it yellow
-                    else if (knownFoundLetters.has(char)) {
+                    // FIX: Check Found (Yellow) BEFORE Grey.
+                    // This ensures that if a letter is known to be in the word, it stays yellow
+                    // even if a duplicate elsewhere was grey.
+                    if (knownFoundLetters.has(char)) {
                         colorClass = 'yellow';
+                    }
+                    else if (knownGreys.has(char)) {
+                        colorClass = 'grey';
                     }
                 }
             }
@@ -309,7 +315,6 @@ function addHistoryRow(word, score, isWin, revealedIndex = -1) {
 
         if (colorClass) div.classList.add(colorClass);
 
-        // Apply visual stroke ONLY to the specifically revealed tile this turn
         if (i === revealedIndex) {
             div.classList.add('new-reveal');
         }
