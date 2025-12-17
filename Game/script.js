@@ -201,7 +201,8 @@ function submitGuess() {
 }
 
 function processHintUpdate(guess, target) {
-    let colors = calculateColors(guess, target);
+    // PASS knownGreens to calculateColors so it can adjust logic
+    let colors = calculateColors(guess, target, knownGreens);
     let candidates = [];
     const targetHasChar = (c) => target.indexOf(c) !== -1;
 
@@ -211,8 +212,10 @@ function processHintUpdate(guess, target) {
         
         const color = colors[i];
         
-        if (color === 'green' && knownGreens[i] !== char) {
-            candidates.push({ type: 'green', index: i, char: char });
+        if (color === 'green') {
+            if (knownGreens[i] !== char) {
+                candidates.push({ type: 'green', index: i, char: char });
+            }
         } 
         else if (color === 'yellow') {
             if (!knownYellows.has(`${i}-${char}`) && knownGreens[i] === null) {
@@ -220,11 +223,10 @@ function processHintUpdate(guess, target) {
             }
         } 
         else if (color === 'grey') {
-            // CHANGE: We allow the candidate even if the letter is in the target.
-            // This ensures we can at least "flash" the tile with a white stroke
-            // to tell the user "This specific spot is wrong".
+            // FIX: Allow this as a candidate even if the letter is in the target.
+            // This ensures we can flash the tile to say "Wrong Spot/Extra".
             if (!knownGreys.has(char)) {
-                 candidates.push({ type: 'grey', index: i, char: char });
+                candidates.push({ type: 'grey', index: i, char: char });
             }
         }
     }
@@ -241,48 +243,56 @@ function processHintUpdate(guess, target) {
             knownYellows.add(choice.key);
         } 
         else if (choice.type === 'grey') {
-            // CRITICAL FIX:
-            // We revealed a Grey tile, so we return its index below (to show the stroke).
-            // BUT, we only add it to 'knownGreys' if it is strictly NOT in the target.
-            // This prevents "poisoning" the Green 'L' by turning it Grey.
+            // FIX: Only add to Global Greys if strictly not in target.
+            // This prevents "Poisoning" a letter that is actually good (Green) elsewhere.
             if (!targetHasChar(choice.char)) {
                 knownGreys.add(choice.char);
             }
         }
-        
-        // Always return the index so the UI draws the white box!
         return choice.index;
     }
     return -1;
 }
 
-function calculateColors(guess, target) {
-    // Standard Wordle Logic handling duplicates
-    let res = Array(10).fill('grey');
-    let tArr = target.split('');
-    let gArr = guess.split('');
+// Updated 3-Pass Color Logic
+function calculateColors(guess, target, knownGreens) {
+    let tCounts = {};
+    // Count frequencies in target
+    for (let c of target) if(c !== ' ') tCounts[c] = (tCounts[c] || 0) + 1;
 
-    // 1. Find Greens first
-    for(let i=0; i<10; i++) {
-        if (gArr[i] !== ' ' && gArr[i] === tArr[i]) { 
-            res[i] = 'green'; 
-            tArr[i] = null; // Mark used in target
-            gArr[i] = null; // Mark used in guess
+    let colors = Array(10).fill(null);
+
+    // Pass 1: Locked (Known) Greens -> These CONSUME the letter count
+    for (let i = 0; i < 10; i++) {
+        if (guess[i] === target[i] && knownGreens[i] === guess[i]) {
+            colors[i] = 'green';
+            if(guess[i] !== ' ') tCounts[guess[i]]--;
+        }
+    }
+
+    // Pass 2: Unknown Greens -> These do NOT consume the letter count yet
+    // This allows a duplicate elsewhere to potentially grab a Yellow hint
+    for (let i = 0; i < 10; i++) {
+        if (colors[i]) continue; // Skip if already handled
+        if (guess[i] === target[i]) {
+            colors[i] = 'green';
+            // Do NOT decrement tCounts here
+        }
+    }
+
+    // Pass 3: Yellows and Greys
+    for (let i = 0; i < 10; i++) {
+        if (colors[i]) continue; // Skip Greens
+        const char = guess[i];
+        if (char !== ' ' && tCounts[char] > 0) {
+            colors[i] = 'yellow';
+            tCounts[char]--;
+        } else {
+            colors[i] = 'grey';
         }
     }
     
-    // 2. Find Yellows
-    for(let i=0; i<10; i++) {
-        if (gArr[i] !== ' ' && gArr[i] !== null) { 
-            // Check if letter exists elsewhere in remaining target letters
-            let idx = tArr.indexOf(gArr[i]);
-            if (idx !== -1) {
-                res[i] = 'yellow';
-                tArr[idx] = null; // Mark used
-            }
-        }
-    }
-    return res;
+    return colors;
 }
 
 // --- RENDERERS ---
