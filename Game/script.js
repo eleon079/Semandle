@@ -89,13 +89,27 @@ function renderSentence() {
             span.classList.add('filler');
         } else {
             if (item.id < currentTargetIndex) {
+                // Fully solved word
                 span.innerText = item.text;
                 span.classList.add('target-solved');
             } else if (item.id === currentTargetIndex) {
-                span.innerText = item.text; 
+                // Active word: show letters for knownGreens, underscores for others
+                let displayStr = "";
+                let targetText = item.text.toLowerCase();
+                
+                for (let i = 0; i < targetText.length; i++) {
+                    // Check if this specific tile has been revealed as green
+                    if (knownGreens[i] === targetText[i]) {
+                        displayStr += targetText[i].toUpperCase() + " ";
+                    } else {
+                        displayStr += "_ ";
+                    }
+                }
+                span.innerText = displayStr.trim();
                 span.classList.add('target-active');
             } else {
-                span.innerText = item.text; 
+                // Future word: strictly underscores
+                span.innerText = "_ ".repeat(item.text.length).trim(); 
                 span.classList.add('target-hidden');
             }
         }

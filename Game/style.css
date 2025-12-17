@@ -45,12 +45,19 @@ header {
     font-size: 0.7rem; text-transform: uppercase;
 }
 .s-word.filler { color: #666; }
-.s-word.target-hidden {
-    background-color: #2a2a2a; color: transparent;
-    min-width: 30px; border-bottom: 2px solid #555;
-}
+.s-word.target-hidden, 
 .s-word.target-active {
-    background-color: #222; border: 1px solid var(--yellow); color: transparent;
+    color: var(--white); 
+    background-color: #2a2a2a;
+    border-bottom: 2px solid #555;
+    letter-spacing: 2px; 
+    font-family: 'Courier New', monospace; /* Keeps spacing consistent */
+    padding: 2px 6px;
+}
+
+.s-word.target-active {
+    border: 1px solid var(--yellow);
+    background-color: #222;
 }
 .s-word.target-solved { background-color: var(--green); color: white; }
 
