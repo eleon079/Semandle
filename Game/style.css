@@ -5,6 +5,7 @@
     --black: #121213;
     --white: #ffffff;
     --border: #565758;
+    --dashboard-bg: #1a1a1b;
 }
 
 * { box-sizing: border-box; user-select: none; }
@@ -14,97 +15,94 @@ body {
     color: var(--white);
     font-family: 'Nunito', sans-serif;
     margin: 0;
-    height: 100dvh; 
-    width: 100%;
-    overflow: hidden;
-    position: fixed;
+    height: 100dvh; width: 100%;
+    overflow: hidden; position: fixed;
 }
 
-/* --- LOADING SCREEN --- */
+/* --- LOADING --- */
 #loading-screen {
     position: fixed; top:0; left:0; width:100%; height:100%;
-    background: var(--black);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 9999;
+    background: var(--black); z-index: 9999;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
 }
-.loader-content { text-align: center; }
-.loader-content h2 { margin-bottom: 5px; }
-.loader-content p { color: #888; }
+.loader-content { text-align: center; color: #888; }
 
-/* --- MAIN CONTAINER --- */
+/* --- LAYOUT --- */
 .game-container {
-    display: flex; flex-direction: column;
-    height: 100%; max-width: 500px; margin: 0 auto;
+    display: flex; flex-direction: column; height: 100%; max-width: 500px; margin: 0 auto;
     padding: 5px 10px;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom)); 
+    padding-bottom: calc(5px + env(safe-area-inset-bottom));
 }
 
-/* --- HEADER / SENTENCE --- */
 header {
     flex-shrink: 0;
+    display: flex; flex-direction: column; gap: 5px;
     border-bottom: 1px solid var(--border);
-    padding-bottom: 8px;
-    margin-bottom: 5px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    padding-bottom: 5px; margin-bottom: 5px;
 }
 
-#sentence-container {
-    display: flex;
-    justify-content: center;
-    min-height: 30px;
-}
-
+/* --- SENTENCE (Smaller now) --- */
 #sentence-display {
-    display: flex;
-    flex-wrap: wrap; /* Wraps words if sentence is long */
-    justify-content: center;
-    gap: 6px;
-    line-height: 1.4;
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
+    padding: 2px 0;
 }
-
-/* Sentence Words */
 .s-word {
-    padding: 2px 5px;
-    border-radius: 4px;
-    font-weight: bold;
+    padding: 1px 4px; border-radius: 3px; font-weight: bold;
+    font-size: 0.8rem; /* Smaller font */
     text-transform: uppercase;
-    font-size: 0.95rem;
 }
-.s-word.filler { color: #888; }
+.s-word.filler { color: #666; }
 .s-word.target-hidden {
-    background-color: #2a2a2a;
-    color: transparent; /* Hides the text */
-    min-width: 40px;
-    border-bottom: 2px solid #555;
+    background-color: #2a2a2a; color: transparent;
+    min-width: 30px; border-bottom: 2px solid #555;
 }
 .s-word.target-active {
-    background-color: #2a2a2a;
-    border: 2px solid var(--yellow);
-    color: transparent;
+    background-color: #222; border: 1px solid var(--yellow); color: transparent;
 }
-.s-word.target-solved {
-    background-color: var(--green);
-    color: white;
-    border: none;
+.s-word.target-solved { background-color: var(--green); color: white; }
+
+/* --- DASHBOARD (Top 3 & Count) --- */
+.dashboard {
+    display: flex; justify-content: space-between; align-items: stretch;
+    background-color: var(--dashboard-bg);
+    border-radius: 6px; padding: 5px 8px;
+    height: 40px; /* Fixed height for stability */
 }
 
-.status-bar {
-    display: flex; justify-content: space-between; align-items: center;
+.top3-container {
+    display: flex; flex-direction: column; justify-content: center;
+    flex-grow: 1; margin-right: 10px;
 }
-#level-indicator { font-size: 0.75rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
-.score-preview { font-size: 0.9rem; font-weight: bold; }
-.hidden { opacity: 0; }
+.label { font-size: 0.6rem; color: #888; font-weight: bold; letter-spacing: 1px; }
 
-/* --- BOARD --- */
+#top3-list {
+    display: flex; gap: 8px; font-size: 0.85rem; font-weight: bold;
+    color: var(--white); overflow: hidden; white-space: nowrap;
+}
+.top-word { color: #4ade80; } /* Light green text */
+
+.guess-counter {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-width: 50px; border-left: 1px solid #333; padding-left: 8px;
+}
+#total-guesses { font-size: 1.1rem; font-weight: bold; color: var(--white); line-height: 1; }
+
+/* --- BOARD GRID --- */
+/* This ensures active row and history rows line up perfectly */
+.tile-row {
+    display: flex; justify-content: center; gap: 3px;
+    height: 32px; margin-bottom: 3px;
+    width: 100%;
+}
+
 #board-scroll-area {
     flex: 1 1 auto; overflow-y: auto; min-height: 0;
     margin-bottom: 5px; padding-right: 2px;
-    -webkit-overflow-scrolling: touch;
 }
-.tile-row { display: flex; justify-content: center; gap: 3px; margin-bottom: 4px; height: 32px; }
-.active-row-container { flex-shrink: 0; margin-bottom: 8px; }
+
+.active-row-container {
+    flex-shrink: 0; margin-bottom: 5px;
+}
 
 .tile {
     flex: 1; max-width: 34px; height: 100%;
@@ -118,37 +116,38 @@ header {
 .tile.filled { border-color: #888; }
 .tile.active-blink { border-color: var(--white); }
 
-.score-pill {
-    width: 38px; display: flex; justify-content: center; align-items: center;
-    font-weight: bold; font-size: 0.8rem; border-radius: 4px; margin-left: 6px; color: #000;
+/* History Score (Now just small text on right) */
+.history-score {
+    width: 25px; font-size: 0.7rem; color: #888;
+    display: flex; align-items: center; justify-content: flex-end;
 }
 
 /* --- KEYBOARD --- */
-#keyboard-container { flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; width: 100%; margin-top: auto; }
+#keyboard-container { flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
 .kb-row { display: flex; justify-content: center; gap: 3px; width: 100%; }
 .key {
     background-color: #818384; color: white; border: none; border-radius: 4px;
-    height: 44px; flex: 1; font-weight: bold; cursor: pointer; font-size: 0.9rem;
+    height: 42px; flex: 1; font-weight: bold; cursor: pointer; font-size: 0.9rem;
     display: flex; justify-content: center; align-items: center; padding: 0;
 }
 .key.wide { flex: 1.5; font-size: 0.8rem; }
 .key.green { background: var(--green); }
 .key.yellow { background: var(--yellow); }
-.key.grey { background: var(--grey); opacity: 0.6; }
+.key.grey { background: var(--grey); opacity: 0.5; }
 
 /* TOAST / MODAL */
 #message-container {
-    position: absolute; top: 12%; left: 50%; transform: translateX(-50%);
-    display: flex; flex-direction: column; gap: 5px; pointer-events: none; z-index: 50;
+    position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; gap: 5px; z-index: 50; pointer-events: none;
 }
 .toast {
-    background-color: var(--white); color: var(--black); padding: 10px 15px;
-    border-radius: 4px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    background-color: var(--white); color: var(--black); padding: 8px 12px;
+    border-radius: 4px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.5);
 }
 .shake { animation: shake 0.4s; }
-@keyframes shake { 0%,100% {transform:translateX(0);} 25% {transform:translateX(-4px);} 75% {transform:translateX(4px);} }
+@keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
 
 .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 100; }
 .hidden { display: none; }
 .modal-content { background: var(--black); border: 1px solid var(--border); padding: 25px; text-align: center; border-radius: 10px; width: 85%; }
-button.primary-btn { background-color: var(--green); color: white; border: none; padding: 12px 30px; margin-top: 20px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+button.primary-btn { background-color: var(--green); color: white; border: none; padding: 12px 30px; margin-top: 15px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 1rem; }

@@ -3,45 +3,44 @@ let gameStructure = [];
 let gameDictionary = {};
 
 // --- Game State ---
-let currentTargetIndex = 0; // The index of the word in the sentence we are guessing
-let currentTargetData = null; // { text: "heated", id: 2 }
+let currentTargetIndex = 0; 
+let currentTargetData = null; 
 let currentInput = ""; 
-let revealedPositionalMask = Array(10).fill(false); 
-let revealedDeadLetters = new Set();
+let guessCount = 0;
+let usedWords = new Set(); // To prevent reuse
+let bestGuesses = []; // Stores {word, score} for Top 3
+
+// --- CLUE STORAGE (The "Memory") ---
+// knownGreens: Array of chars or null. e.g. [null, 'a', null, 't'...]
+let knownGreens = Array(10).fill(null);
+// knownYellows: Set of strings "index-char". e.g. "0-e" means we know 'e' is yellow at index 0.
+let knownYellows = new Set();
+// knownGreys: Set of chars. e.g. {'z', 'x'}
+let knownGreys = new Set();
 
 // --- DOM Elements ---
 const historyContainer = document.getElementById('history-container');
 const activeRow = document.getElementById('active-row');
-const levelIndicator = document.getElementById('level-indicator');
-const messageContainer = document.getElementById('message-container');
-const lastScoreDisplay = document.getElementById('last-score');
 const sentenceDisplay = document.getElementById('sentence-display');
 const loadingScreen = document.getElementById('loading-screen');
+const top3List = document.getElementById('top3-list');
+const totalGuessesDisplay = document.getElementById('total-guesses');
 
 // --- Initialization ---
 function initGame() {
-    // 1. Try to read data from words.js (which sets window.GAME_DATA)
     if (window.GAME_DATA) {
         gameStructure = window.GAME_DATA.structure;
         gameDictionary = window.GAME_DATA.dictionary;
-        
-        // Hide loader
         if(loadingScreen) loadingScreen.style.display = 'none';
-        
         createKeyboard();
-        startLevel(0); // Start at first target
+        startLevel(0);
     } else {
-        // If file is huge, give it another 500ms to parse
         setTimeout(initGame, 500);
     }
 }
 
 // --- Level Logic ---
 function startLevel(targetId) {
-    // Find the next target in the structure
-    // Note: 'gameStructure' is array of {text, type, id}. 'id' exists only for targets.
-    // We look for the item where item.id == targetId
-    
     let nextTarget = gameStructure.find(item => item.id === targetId);
     
     if (!nextTarget) {
@@ -54,24 +53,28 @@ function startLevel(targetId) {
     
     // Reset Board State
     currentInput = "";
-    revealedPositionalMask = Array(10).fill(false);
-    revealedDeadLetters = new Set();
-    historyContainer.innerHTML = "";
-    lastScoreDisplay.classList.add('hidden');
-    lastScoreDisplay.innerText = "";
+    guessCount = 0;
+    usedWords = new Set();
+    bestGuesses = [];
     
-    // Auto-reveal spaces in the target word (if any)
-    // We pad the target word to 10 chars for the grid logic
+    // Reset Clue Memory
+    knownGreens = Array(10).fill(null);
+    knownYellows = new Set();
+    knownGreys = new Set();
 
-    // REMOVED THE BELOW ------------------------------------------------
-    //let targetWordPadded = nextTarget.text.toLowerCase().padEnd(10, ' ');
-    //for(let i=0; i<10; i++) {
-    //    if(targetWordPadded[i] === ' ') revealedPositionalMask[i] = true;
-    //}
+    historyContainer.innerHTML = "";
+    updateDashboard();
+    
+    // Auto-reveal spaces in the target word
+    // (We treat spaces as "Green" immediately)
+    let targetWordPadded = nextTarget.text.toLowerCase().padEnd(10, ' ');
+    for(let i=0; i<10; i++) {
+        if(targetWordPadded[i] === ' ') {
+            knownGreens[i] = ' '; 
+        }
+    }
 
-    // Update UI
     renderSentence();
-    levelIndicator.innerText = `Guessing Word ${targetId + 1}`;
     renderActiveRow();
     resetKeyboard();
 }
@@ -87,22 +90,36 @@ function renderSentence() {
             span.innerText = item.text;
             span.classList.add('filler');
         } else {
-            // It is a target word
             if (item.id < currentTargetIndex) {
-                // Already Solved
                 span.innerText = item.text;
                 span.classList.add('target-solved');
             } else if (item.id === currentTargetIndex) {
-                // Current Target
-                span.innerText = item.text; // Text exists but hidden by CSS color transparent
+                span.innerText = item.text; 
                 span.classList.add('target-active');
             } else {
-                // Future Target
-                span.innerText = item.text; // Hidden
+                span.innerText = item.text; 
                 span.classList.add('target-hidden');
             }
         }
         sentenceDisplay.appendChild(span);
+        // Add zero-width space or small margin via CSS to separate
+    });
+}
+
+function updateDashboard() {
+    totalGuessesDisplay.innerText = guessCount;
+    
+    if (bestGuesses.length === 0) {
+        top3List.innerHTML = '<span class="empty-state">-</span>';
+        return;
+    }
+
+    top3List.innerHTML = '';
+    bestGuesses.forEach(bg => {
+        let span = document.createElement('span');
+        span.className = 'top-word';
+        span.innerText = `${bg.word.toUpperCase()} (${bg.score})`;
+        top3List.appendChild(span);
     });
 }
 
@@ -125,33 +142,38 @@ function submitGuess() {
 
     if (guessClean.length < 2) { shakeBoard(); showToast("Too short"); return; }
     if (!gameDictionary.hasOwnProperty(guessClean)) { shakeBoard(); showToast("Not in word list"); return; }
+    if (usedWords.has(guessClean)) { shakeBoard(); showToast("Already used"); return; }
 
-    // Get score for CURRENT target index
-    const scores = gameDictionary[guessClean];
-    const score = scores[currentTargetIndex]; // Dictionary stores array of scores [target0, target1...]
+    // Register Guess
+    usedWords.add(guessClean);
+    guessCount++;
     
+    const scores = gameDictionary[guessClean];
+    const score = scores[currentTargetIndex];
+    
+    // Update Top 3
+    bestGuesses.push({ word: guessClean, score: score });
+    bestGuesses.sort((a,b) => b.score - a.score);
+    if (bestGuesses.length > 3) bestGuesses.length = 3;
+    updateDashboard();
+
     const targetWordString = currentTargetData.text.toLowerCase().padEnd(10, ' ');
     const guessPadded = guessClean.padEnd(10, ' ');
 
     // Win Check
     if (guessClean === currentTargetData.text.toLowerCase()) {
-        addHistoryRow(guessPadded, Array(10).fill('green'), 100, true);
+        // Reveal all greens for visual satisfaction
+        for(let i=0; i<10; i++) knownGreens[i] = guessPadded[i];
+        addHistoryRow(guessPadded, score);
         handleWin();
         return;
     }
 
-    // Logic for hints
-    const colors = calculateColors(guessPadded, targetWordString);
-    selectNewHint(guessPadded, colors);
+    // Process Hints
+    processHintUpdate(guessPadded, targetWordString);
     
-    addHistoryRow(guessPadded, colors, score, false);
-    updateKeyboard(guessPadded, colors);
-
-    // Update Score
-    lastScoreDisplay.innerText = `Score: ${score}`;
-    lastScoreDisplay.classList.remove('hidden');
-    let hue = Math.max(0, Math.min(120, score * 1.2));
-    lastScoreDisplay.style.color = `hsl(${hue}, 80%, 60%)`;
+    addHistoryRow(guessPadded, score);
+    updateKeyboard();
 
     currentInput = "";
     renderActiveRow();
@@ -159,41 +181,63 @@ function submitGuess() {
     scrollArea.scrollTop = scrollArea.scrollHeight;
 }
 
-// --- Core Game Logic (Same as before) ---
+// --- CORE HINT LOGIC ---
 
-function selectNewHint(guess, colors) {
-    let nonGreenCandidates = [];
-    let greenCandidates = [];
+function processHintUpdate(guess, target) {
+    // 1. Calculate raw Wordle colors for this specific guess
+    let colors = calculateColors(guess, target);
     
+    let candidates = [];
+
+    // 2. Identify "New Information" candidates
     for (let i = 0; i < 10; i++) {
         const char = guess[i];
         if (char === ' ') continue; 
         
         const color = colors[i];
         
-        if (color === 'yellow' && !revealedPositionalMask[i]) {
-            nonGreenCandidates.push({ index: i, type: 'positional' });
-        }
-        else if (color === 'grey' && !revealedDeadLetters.has(char)) {
-            nonGreenCandidates.push({ index: i, type: 'deadLetter', char: char });
-        }
-        else if (color === 'green' && !revealedPositionalMask[i]) {
-            greenCandidates.push({ index: i, type: 'positional' });
+        if (color === 'green') {
+            // It's a candidate if we didn't already know this position is this letter
+            if (knownGreens[i] !== char) {
+                candidates.push({ type: 'green', index: i, char: char });
+            }
+        } 
+        else if (color === 'yellow') {
+            // It's a candidate if we didn't already know this specific tile is yellow for this char
+            let key = `${i}-${char}`;
+            if (!knownYellows.has(key)) {
+                candidates.push({ type: 'yellow', index: i, char: char, key: key });
+            }
+        } 
+        else if (color === 'grey') {
+            // It's a candidate if we didn't already know this letter is grey
+            if (!knownGreys.has(char)) {
+                candidates.push({ type: 'grey', char: char });
+            }
         }
     }
 
-    let choice = null;
-    if (nonGreenCandidates.length > 0) {
-        const r = Math.floor(Math.random() * nonGreenCandidates.length);
-        choice = nonGreenCandidates[r];
-    } else if (greenCandidates.length > 0) {
-        const r = Math.floor(Math.random() * greenCandidates.length);
-        choice = greenCandidates[r];
-    }
+    // 3. Select ONE new hint to reveal (if any exist)
+    if (candidates.length > 0) {
+        // Weighting: Prefer Grey/Yellow over Green to extend gameplay
+        // Filter out greens unless they are the only option
+        let nonGreens = candidates.filter(c => c.type !== 'green');
+        
+        let choice = null;
+        if (nonGreens.length > 0) {
+            choice = nonGreens[Math.floor(Math.random() * nonGreens.length)];
+        } else {
+            choice = candidates[Math.floor(Math.random() * candidates.length)];
+        }
 
-    if (choice) {
-        if (choice.type === 'positional') revealedPositionalMask[choice.index] = true;
-        else if (choice.type === 'deadLetter') revealedDeadLetters.add(choice.char);
+        // Apply to Memory
+        if (choice.type === 'green') {
+            knownGreens[choice.index] = choice.char;
+        } else if (choice.type === 'yellow') {
+            knownYellows.add(choice.key);
+        } else if (choice.type === 'grey') {
+            knownGreys.add(choice.char);
+        }
     }
 }
 
@@ -203,22 +247,15 @@ function calculateColors(guess, target) {
     let gArr = guess.split('');
 
     for(let i=0; i<10; i++) {
-        if (gArr[i] === tArr[i]) {
-            res[i] = 'green';
-            tArr[i] = null; gArr[i] = null;
-        }
+        if (gArr[i] === tArr[i]) { res[i] = 'green'; tArr[i] = null; gArr[i] = null; }
     }
     for(let i=0; i<10; i++) {
-        if (gArr[i] && tArr.includes(gArr[i])) {
-            res[i] = 'yellow';
-            let idx = tArr.indexOf(gArr[i]);
-            tArr[idx] = null;
-        }
+        if (gArr[i] && tArr.includes(gArr[i])) { res[i] = 'yellow'; let idx = tArr.indexOf(gArr[i]); tArr[idx] = null; }
     }
     return res;
 }
 
-// --- Rendering Helpers ---
+// --- RENDERERS ---
 
 function renderActiveRow() {
     activeRow.innerHTML = '';
@@ -226,91 +263,90 @@ function renderActiveRow() {
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
-        if (padded[i] !== ' ') {
-            div.innerText = padded[i];
-            div.classList.add('filled');
-        }
+        // Match width of history tiles for alignment
+        if (padded[i] !== ' ') { div.innerText = padded[i]; div.classList.add('filled'); }
         if (i === currentInput.length) div.classList.add('active-blink');
         activeRow.appendChild(div);
     }
 }
 
-function addHistoryRow(word, colors, score, isWin) {
+function addHistoryRow(word, score) {
     let row = document.createElement('div');
     row.className = 'tile-row';
+    
+    // Render based on CUMULATIVE knowledge
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
         let char = word[i];
         if (char !== ' ') div.innerText = char;
 
-        let color = colors[i];
-        let showColor = isWin;
-
-        if (!isWin) {
-            if ((color === 'green' || color === 'yellow') && revealedPositionalMask[i]) showColor = true;
-            else if (color === 'grey' && revealedDeadLetters.has(char)) showColor = true;
+        // Apply Colors based on stored memory
+        if (knownGreens[i] === char) {
+            div.classList.add('green');
+        } 
+        else if (knownYellows.has(`${i}-${char}`)) {
+            div.classList.add('yellow');
+        } 
+        else if (knownGreys.has(char)) {
+            div.classList.add('grey');
         }
 
-        if (showColor) div.classList.add(color);
         row.appendChild(div);
     }
+
     let scoreDiv = document.createElement('div');
-    scoreDiv.className = 'score-pill';
-    scoreDiv.innerText = score;
-    let bg = `hsl(${score * 1.2}, 70%, 50%)`; 
-    scoreDiv.style.backgroundColor = bg;
+    scoreDiv.className = 'history-score';
+    // Just show score number quietly
+    // scoreDiv.innerText = score; 
+    // Actually, user replaced score with guess count, so let's hide score in row
+    // or keep it subtle. Let's keep it subtle.
     row.appendChild(scoreDiv);
+    
     historyContainer.appendChild(row);
 }
 
-function updateKeyboard(word, colors) {
-    for(let i=0; i<10; i++) {
-        let char = word[i];
-        if (char === ' ') continue;
-        let color = colors[i];
+function updateKeyboard() {
+    // Standard Wordle Keyboard Coloring
+    // Green > Yellow > Grey
+    // We scan our Memory to update keys
+    
+    // 1. Greys
+    knownGreys.forEach(char => {
         let btn = document.getElementById('key-'+char);
-        if(!btn) continue;
+        if(btn) btn.className = 'key grey';
+    });
 
-        let shouldUpdate = false;
-        if ((color === 'green' || color === 'yellow') && revealedPositionalMask[i]) shouldUpdate = true;
-        else if (color === 'grey' && revealedDeadLetters.has(char)) shouldUpdate = true;
+    // 2. Yellows (Iterate knownYellows set)
+    knownYellows.forEach(val => {
+        let char = val.split('-')[1];
+        let btn = document.getElementById('key-'+char);
+        if(btn && !btn.classList.contains('green')) btn.className = 'key yellow';
+    });
 
-        if (shouldUpdate) {
-            let currentClass = btn.className;
-            if (color === 'green') btn.className = 'key green';
-            else if (color === 'yellow' && !currentClass.includes('green')) btn.className = 'key yellow';
-            else if (color === 'grey' && !currentClass.includes('green') && !currentClass.includes('yellow')) btn.className = 'key grey';
+    // 3. Greens (Iterate knownGreens array)
+    knownGreens.forEach(char => {
+        if(char && char !== ' ') {
+            let btn = document.getElementById('key-'+char);
+            if(btn) btn.className = 'key green';
         }
-    }
+    });
 }
 
 function createKeyboard() {
     const kb = document.getElementById('keyboard-container');
     kb.innerHTML = '';
-    const rows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
-    rows.forEach(rowStr => {
+    ["qwertyuiop", "asdfghjkl", "zxcvbnm"].forEach((rowStr, idx) => {
         let row = document.createElement('div');
         row.className = 'kb-row';
+        if(idx===2) {
+            let enter = document.createElement('button'); enter.className='key wide'; enter.innerText='ENTER'; enter.onclick=submitGuess; row.appendChild(enter);
+        }
         rowStr.split('').forEach(char => {
-            let btn = document.createElement('button');
-            btn.className = 'key';
-            btn.innerText = char;
-            btn.id = 'key-'+char;
-            btn.onclick = () => handleKey(char);
-            row.appendChild(btn);
+            let btn = document.createElement('button'); btn.className='key'; btn.innerText=char; btn.id='key-'+char; btn.onclick=()=>handleKey(char); row.appendChild(btn);
         });
-        if (rowStr.startsWith('z')) {
-            let enter = document.createElement('button');
-            enter.className = 'key wide';
-            enter.innerText = 'ENTER';
-            enter.onclick = () => handleKey('ENTER');
-            row.prepend(enter);
-            let back = document.createElement('button');
-            back.className = 'key wide';
-            back.innerText = '⌫';
-            back.onclick = () => handleKey('BACKSPACE');
-            row.appendChild(back);
+        if(idx===2) {
+            let back = document.createElement('button'); back.className='key wide'; back.innerText='⌫'; back.onclick=()=>handleKey('BACKSPACE'); row.appendChild(back);
         }
         kb.appendChild(row);
     });
@@ -325,64 +361,44 @@ function resetKeyboard() {
 }
 
 function showToast(msg) {
-    let t = document.createElement('div');
-    t.className = 'toast';
-    t.innerText = msg;
+    let t = document.createElement('div'); t.className = 'toast'; t.innerText = msg;
     messageContainer.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 1500);
 }
 
 function shakeBoard() {
-    activeRow.classList.add('shake');
-    setTimeout(() => activeRow.classList.remove('shake'), 500);
+    activeRow.classList.add('shake'); setTimeout(() => activeRow.classList.remove('shake'), 500);
 }
 
 function handleWin() {
     const modal = document.getElementById('modal');
     const msg = document.getElementById('modal-msg');
+    const stats = document.getElementById('modal-stats');
     const action = document.getElementById('modal-next-action');
-    const title = document.getElementById('modal-title');
     
     modal.classList.remove('hidden');
-    action.innerHTML = ''; 
-
-    title.innerText = "Word Found!";
-    msg.innerText = `You found "${currentTargetData.text.toUpperCase()}"`;
+    action.innerHTML = '';
     
-    let btn = document.createElement('button');
-    btn.className = 'primary-btn';
-    btn.innerText = "Continue";
-    btn.onclick = () => {
-        modal.classList.add('hidden');
-        startLevel(currentTargetIndex + 1);
-    };
+    document.getElementById('modal-title').innerText = "Word Found!";
+    msg.innerText = `You found "${currentTargetData.text.toUpperCase()}"`;
+    stats.innerText = `Guesses: ${guessCount}`;
+    
+    let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Next Word";
+    btn.onclick = () => { modal.classList.add('hidden'); startLevel(currentTargetIndex + 1); };
     action.appendChild(btn);
 }
 
 function handleGrandWin() {
     const modal = document.getElementById('modal');
-    const msg = document.getElementById('modal-msg');
-    const action = document.getElementById('modal-next-action');
-    const title = document.getElementById('modal-title');
-
     modal.classList.remove('hidden');
-    action.innerHTML = '';
-    
-    title.innerText = "GIFT REVEALED";
-    // Construct full sentence from structure
-    let full = gameStructure.map(x => x.text).join(' ');
-    
-    msg.innerText = `The message is:\n"${full}"`;
-    
-    let btn = document.createElement('button');
-    btn.className = 'primary-btn';
-    btn.innerText = "Close";
+    document.getElementById('modal-title').innerText = "GIFT REVEALED";
+    document.getElementById('modal-msg').innerText = `The message is:\n"${gameStructure.map(x=>x.text).join(' ')}"`;
+    document.getElementById('modal-stats').innerText = `Total Guesses: ${guessCount}`; // Note: This resets per level in current logic, if you want grand total, need global var.
+    document.getElementById('modal-next-action').innerHTML = '';
+    let btn = document.createElement('button'); btn.className = 'primary-btn'; btn.innerText = "Close";
     btn.onclick = () => modal.classList.add('hidden');
-    action.appendChild(btn);
-    
-    // Set index high so sentence renders fully revealed
-    currentTargetIndex = 999;
-    renderSentence();
+    document.getElementById('modal-next-action').appendChild(btn);
+    currentTargetIndex = 999; renderSentence();
 }
 
 // Start
