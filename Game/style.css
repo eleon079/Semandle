@@ -114,17 +114,19 @@ header {
 .tile.filled { border-color: #888; }
 .tile.active-blink { border-color: var(--white); }
 
-/* --- NEW ANIMATION FOR REVEALED TILE --- */
+/* --- NEW STROKE EFFECT (Replaces Pop) --- */
 .tile.new-reveal {
-    animation: revealPop 0.6s ease-out forwards;
+    /* Create a thick white inner stroke */
+    box-shadow: inset 0 0 0 3px #ffffff; 
+    border-color: transparent; /* Hide original border to emphasize the inset */
     z-index: 10;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    animation: pulseBorder 1.5s infinite;
 }
 
-@keyframes revealPop {
-    0% { transform: scale(1); filter: brightness(1); }
-    50% { transform: scale(1.15); filter: brightness(1.5); border-color: #fff; }
-    100% { transform: scale(1); filter: brightness(1); }
+@keyframes pulseBorder {
+    0% { box-shadow: inset 0 0 0 3px #ffffff; }
+    50% { box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.5); }
+    100% { box-shadow: inset 0 0 0 3px #ffffff; }
 }
 
 

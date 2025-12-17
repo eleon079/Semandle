@@ -1,3 +1,7 @@
+{
+type: existing file
+fileName: script.js
+}
 // --- Data Containers ---
 let gameStructure = [];
 let gameDictionary = {};
@@ -12,8 +16,9 @@ let bestGuesses = [];
 
 // --- CLUE STORAGE ---
 let knownGreens = Array(10).fill(null);
-let knownYellows = new Set();
+let knownYellows = new Set(); // Tracks specific "Index-Char" combinations for the randomizer
 let knownGreys = new Set();
+let knownFoundLetters = new Set(); // NEW: Tracks letters we know exist in the word generally
 
 // --- DOM Elements ---
 const historyContainer = document.getElementById('history-container');
@@ -57,6 +62,7 @@ function startLevel(targetId) {
     knownGreens = Array(10).fill(null);
     knownYellows = new Set();
     knownGreys = new Set();
+    knownFoundLetters = new Set(); // RESET THIS
 
     historyContainer.innerHTML = "";
     updateDashboard();
@@ -165,61 +171,52 @@ function submitGuess() {
 }
 
 function processHintUpdate(guess, target) {
-    // 1. Calculate the true colors for this guess vs target
     let colors = calculateColors(guess, target);
     let candidates = [];
 
-    // 2. Filter for ONLY information we do not already know
     for (let i = 0; i < 10; i++) {
         const char = guess[i];
-        if (char === ' ') continue; // Never reveal spaces
+        if (char === ' ') continue; 
         
         const color = colors[i];
         
         if (color === 'green') {
-            // Valid if we don't already know this position is green
             if (knownGreens[i] !== char) {
                 candidates.push({ type: 'green', index: i, char: char });
             }
         } 
         else if (color === 'yellow') {
-            // Valid if we haven't tracked this specific index-char as yellow yet
-            // AND we don't already know it's green (though calculateColors handles priority)
             let key = `${i}-${char}`;
             if (!knownYellows.has(key)) {
                 candidates.push({ type: 'yellow', index: i, char: char, key: key });
             }
         } 
         else if (color === 'grey') {
-            // Valid if we don't already know this char is grey
             if (!knownGreys.has(char)) {
                 candidates.push({ type: 'grey', index: i, char: char });
             }
         }
     }
 
-    // 3. Pick EXACTLY ONE random candidate if available
     if (candidates.length > 0) {
         let choice = candidates[Math.floor(Math.random() * candidates.length)];
 
-        // Update Global State
         if (choice.type === 'green') {
             knownGreens[choice.index] = choice.char;
-            // Clean up old yellows that might conflict now that we know the green
             knownYellows.delete(`${choice.index}-${choice.char}`);
+            knownFoundLetters.add(choice.char); // Mark S as "Found"
         }
         else if (choice.type === 'yellow') {
             knownYellows.add(choice.key);
+            knownFoundLetters.add(choice.char); // Mark S as "Found"
         }
         else if (choice.type === 'grey') {
             knownGreys.add(choice.char);
         }
 
-        // Return the index to highlight
         return choice.index;
     }
-
-    return -1; // No new info found
+    return -1;
 }
 
 function calculateColors(guess, target) {
@@ -287,17 +284,36 @@ function addHistoryRow(word, score, isWin, revealedIndex = -1) {
         if (isWin) {
             if(char !== ' ') colorClass = 'green';
         } else {
-            // Only color if it's a letter AND we know it from global state
             if (char !== ' ') {
-                if (knownGreens[i] === char) colorClass = 'green';
-                else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
-                else if (knownGreys.has(char)) colorClass = 'grey';
+                // 1. Is it a known GREEN position?
+                if (knownGreens[i] === char) {
+                    colorClass = 'green';
+                }
+                // 2. Is it the SPECIFIC tile we just revealed this turn? (Force true color)
+                else if (i === revealedIndex) {
+                    // We need to know what color this specific tile *actually* is to render it correctly
+                    // We can cheat slightly and look at the global known state which we just updated
+                     if (knownGreens[i] === char) colorClass = 'green';
+                     else if (knownYellows.has(`${i}-${char}`)) colorClass = 'yellow';
+                     else if (knownGreys.has(char)) colorClass = 'grey';
+                     else if (knownFoundLetters.has(char)) colorClass = 'yellow'; // Fallback
+                }
+                // 3. General Logic for past clues
+                else {
+                    if (knownGreys.has(char)) {
+                        colorClass = 'grey';
+                    }
+                    // FIX: If we know the letter exists in the word (from ANY previous clue), make it yellow
+                    else if (knownFoundLetters.has(char)) {
+                        colorClass = 'yellow';
+                    }
+                }
             }
         }
 
         if (colorClass) div.classList.add(colorClass);
 
-        // Apply visual pop ONLY to the specifically revealed tile this turn
+        // Apply visual stroke ONLY to the specifically revealed tile this turn
         if (i === revealedIndex) {
             div.classList.add('new-reveal');
         }
@@ -305,7 +321,6 @@ function addHistoryRow(word, score, isWin, revealedIndex = -1) {
         row.appendChild(div);
     }
 
-    // 3. Render Score
     let scoreDiv = document.createElement('div');
     scoreDiv.className = 'history-score';
     scoreDiv.innerText = score;
