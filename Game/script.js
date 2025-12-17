@@ -150,7 +150,7 @@ function submitGuess() {
     // Update Top 3
     bestGuesses.push({ word: guessClean, score: score });
     bestGuesses.sort((a,b) => b.score - a.score);
-    if (bestGuesses.length > 3) bestGuesses.length = 3;
+    if (bestGuesses.length > 5) bestGuesses.length = 5;
     updateDashboard();
 
     const targetWordString = currentTargetData.text.toLowerCase().padEnd(10, ' ');
