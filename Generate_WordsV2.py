@@ -4,15 +4,13 @@ import requests
 import sys
 
 # --- CONFIGURATION ---
-SECRET_SENTENCE = "My DEAR KOALA, to keep the SHIVERS away when we're APART on the COLD WINTER nights, I FOUND a way to MIMIC my WARMTH when you are TUCKED in, to keep my SUNSHINE TOASTY and COZY. MERRY CHRISTMAS to the person who always PROVOKES my BIGGEST SMILES. Think of this GIFT as a RADIATING HUG from your FAVORITE HEATER. To the INVALUABLE light of my life."
+SECRET_SENTENCE = "My DEAR KOALA, to KEEP the SHIVERS at BAY on those FREEZING winter nights APART from your favorite PERSONAL HEATER, let this GIFT be a SOFT and TOASTY RADIATING HUG for the INVALUABLE love of my life."
 
 # Words you explicitly want to hide (All caps from your prompt)
 ALWAYS_HIDE = [
-    "DEAR", "KOALA", "SHIVERS", "APART", "COLD", "WINTER", 
-    "FOUND", "MIMIC", "WARMTH", "TUCKED", "SUNSHINE", 
-    "TOASTY", "COZY", "MERRY", "CHRISTMAS", "PROVOKES", 
-    "BIGGEST", "SMILES", "GIFT", "RADIATING", "HUG", 
-    "FAVORITE", "HEATER", "INVALUABLE"
+    "DEAR", "KOALA", "SHIVERS", "APART", "BAY", "FREEZING", 
+    "FAVORITE", "HEATER", "GIFT", "SOFT", "TOASTY", "RADIATING",
+    "HUG", "INVALUABLE",
 ]
 
 # Words you explicitly want to remain visible
@@ -65,7 +63,7 @@ def generate_data():
 
         if word_lookup in ALWAYS_HIDE:
             is_target = True
-        elif word_lookup in ALWAYS_SHOW:
+        elif word_lookup not in ALWAYS_HIDE:
             is_target = False
         else:
             # Fall back to your existing logic
