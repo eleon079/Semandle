@@ -290,16 +290,36 @@ function renderActiveRow() {
     activeRow.innerHTML = '';
     const padded = currentInput.padEnd(10, ' ');
     
-    // 1. Render Tiles
     for (let i = 0; i < 10; i++) {
         let div = document.createElement('div');
         div.className = 'tile';
-        if (padded[i] !== ' ') { div.innerText = padded[i]; div.classList.add('filled'); }
+        let char = padded[i];
+
+        if (char !== ' ') { 
+            div.innerText = char; 
+            div.classList.add('filled'); 
+
+            // --- LIVE COLORING LOGIC ---
+            
+            // 1. GREEN: Matches a known Green at this specific spot
+            if (knownGreens[i] === char) {
+                div.classList.add('green');
+            }
+            // 2. GREY: Letter is known to be dead (not in word)
+            else if (knownGreys.has(char)) {
+                div.classList.add('grey');
+            }
+            // 3. YELLOW: Only if we specifically found a Yellow hint for THIS letter at THIS spot.
+            // This acts as a warning: "You know this is the wrong spot for this letter."
+            else if (knownYellows.has(`${i}-${char}`)) {
+                div.classList.add('yellow');
+            }
+        }
+        
         if (i === currentInput.length) div.classList.add('active-blink');
         activeRow.appendChild(div);
     }
     
-    // 2. Render Ghost Spacer (Fixes alignment)
     let spacer = document.createElement('div');
     spacer.className = 'score-spacer';
     activeRow.appendChild(spacer);
