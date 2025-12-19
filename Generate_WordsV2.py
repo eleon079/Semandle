@@ -4,7 +4,19 @@ import requests
 import sys
 
 # --- CONFIGURATION ---
-SECRET_SENTENCE = "My beloved koala, since your otter cannot always be nearby to radiate sufficient body heat during this frigid Christmas, please use this substitute to stay toasty: heated blanket !"
+SECRET_SENTENCE = "My DEAR KOALA, to keep the SHIVERS away when we're APART on the COLD WINTER nights, I FOUND a way to MIMIC my WARMTH when you are TUCKED in, to keep my SUNSHINE TOASTY and COZY. MERRY CHRISTMAS to the person who always PROVOKES my BIGGEST SMILES. Think of this GIFT as a RADIATING HUG from your FAVORITE HEATER. To the INVALUABLE light of my life."
+
+# Words you explicitly want to hide (All caps from your prompt)
+ALWAYS_HIDE = [
+    "DEAR", "KOALA", "SHIVERS", "APART", "COLD", "WINTER", 
+    "FOUND", "MIMIC", "WARMTH", "TUCKED", "SUNSHINE", 
+    "TOASTY", "COZY", "MERRY", "CHRISTMAS", "PROVOKES", 
+    "BIGGEST", "SMILES", "GIFT", "RADIATING", "HUG", 
+    "FAVORITE", "HEATER", "INVALUABLE"
+]
+
+# Words you explicitly want to remain visible
+ALWAYS_SHOW = ["KEEP", "AWAY", "NIGHTS", "PERSON", "ALWAYS", "LIGHT", "LIFE"]
 
 def generate_data():
     print("1. Loading Language Model... (approx 10-20 seconds)")
@@ -22,15 +34,43 @@ def generate_data():
     sentence_structure = []
 
     for token in doc:
+        #word_clean = token.text.strip()
+        #if not word_clean: continue
+
+        # Target Logic: Significant words (Noun/Verb/Adj/Adv) that aren't Stop Words
+        #is_significant = token.pos_ in ['NOUN', 'VERB', 'ADJ', 'ADV', 'PROPN']
+        #is_long_enough = len(word_clean) >= 3
+        #is_not_stop = not token.is_stop
+        
+        #is_target = is_significant and is_long_enough and is_not_stop
+
+        #if is_target:
+        #    targets.append(token)
+        #    sentence_structure.append({
+        #        "text": word_clean, 
+        #        "type": "target", 
+        #        "id": len(targets)-1
+        #    })
+        #    print(f"   [TARGET]: {word_clean}")
+        #else:
+        #    sentence_structure.append({
+        #        "text": word_clean, 
+        #        "type": "filler"
+        #    })
+        #    print(f"   [FILLER]: {word_clean}")
         word_clean = token.text.strip()
         if not word_clean: continue
 
-        # Target Logic: Significant words (Noun/Verb/Adj/Adv) that aren't Stop Words
-        is_significant = token.pos_ in ['NOUN', 'VERB', 'ADJ', 'ADV', 'PROPN']
-        is_long_enough = len(word_clean) >= 3
-        is_not_stop = not token.is_stop
-        
-        is_target = is_significant and is_long_enough and is_not_stop
+        word_lookup = word_clean.upper().replace(',', '').replace('.', '')
+
+        if word_lookup in ALWAYS_HIDE:
+            is_target = True
+        elif word_lookup in ALWAYS_SHOW:
+            is_target = False
+        else:
+            # Fall back to your existing logic
+            is_significant = token.pos_ in ['NOUN', 'VERB', 'ADJ']
+            is_target = is_significant and not token.is_stop
 
         if is_target:
             targets.append(token)
@@ -39,13 +79,13 @@ def generate_data():
                 "type": "target", 
                 "id": len(targets)-1
             })
-            print(f"   [TARGET]: {word_clean}")
+            print(f"   [HIDDEN]: {word_clean}")
         else:
             sentence_structure.append({
                 "text": word_clean, 
                 "type": "filler"
             })
-            print(f"   [FILLER]: {word_clean}")
+            print(f"   [VISIBLE]: {word_clean}")
 
     # --- STEP 2: Download LARGER Word List ---
     # Using a frequency list of the top 333,000 words
