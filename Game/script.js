@@ -137,7 +137,7 @@ function updateDashboard() {
         
         // COLOR LOGIC: Score 60 = Green (Hue 120).
         // Multiplier: 2.0 (60 * 2 = 120)
-        let hue = Math.max(0, Math.min(120, bg.score * 2.0));
+        let hue = Math.max(0, Math.min(120, bg.score * 1.8));
         span.style.color = `hsl(${hue}, 70%, 60%)`;
         
         top3List.appendChild(span);
@@ -358,7 +358,7 @@ function addHistoryRow(word, score, isWin, revealedIndex = -1) {
     scoreDiv.innerText = score;
     
     // COLOR LOGIC: Score 60 = Green
-    let hue = Math.max(0, Math.min(120, score * 2.0));
+    let hue = Math.max(0, Math.min(120, score * 1.8));
     
     scoreDiv.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
     
