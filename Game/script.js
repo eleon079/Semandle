@@ -102,7 +102,7 @@ function renderSentence() {
                     if (knownGreens[i] === targetText[i]) {
                         displayStr += targetText[i].toUpperCase() + " ";
                     } else {
-                        displayStr += "_ ";
+                        displayStr += "_";
                     }
                 }
                 span.innerText = displayStr.trim();
