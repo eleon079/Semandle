@@ -100,7 +100,7 @@ function renderSentence() {
                 for (let i = 0; i < targetText.length; i++) {
                     // Check if this specific tile has been revealed as green
                     if (knownGreens[i] === targetText[i]) {
-                        displayStr += targetText[i].toUpperCase() + "";
+                        displayStr += targetText[i].toUpperCase();
                     } else {
                         displayStr += "_";
                     }
@@ -475,7 +475,7 @@ function handleGrandWin() {
     
     // ...
     
-    document.getElementById('modal-title').innerText = "GIFT REVEALED";
+    document.getElementById('modal-title').innerText = "CLUE REVEALED";
     
     const fullMessage = gameStructure.map(x => x.text).join(' ');
     
