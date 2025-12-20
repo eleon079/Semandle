@@ -109,7 +109,7 @@ function renderSentence() {
                 span.classList.add('target-active');
             } else {
                 // Future word: strictly underscores
-                span.innerText = "_ ".repeat(item.text.length).trim(); 
+                span.innerText = "_".repeat(item.text.length).trim(); 
                 span.classList.add('target-hidden');
             }
         }
