@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Secret Gift</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="loader-content">
+            <h2>Loading Dictionary...</h2>
+            <p>Please wait...</p>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <header>
+            <div id="sentence-container">
+                <div id="sentence-display"></div>
+            </div>
+            
+            <div class="dashboard">
+                <div class="top3-container">
+                    <span class="label">BEST CLUES:</span>
+                    <div id="top3-list"><span class="empty-state">-</span></div>
+                </div>
+                <div class="guess-counter">
+                    <span class="label">GUESSES</span>
+                    <span id="total-guesses">0</span>
+                </div>
+            </div>
+        </header>
+
+        <div id="board-scroll-area">
+            <div id="history-container"></div>
+            <div id="active-row" class="tile-row"></div>
+            <div style="height: 40px;"></div> 
+        </div>
+
+        <div id="message-container"></div>
+        <div id="keyboard-container"></div>
+    </div>
+
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="modal-title">Solved!</h2>
+            <p id="modal-msg"></p>
+            <div id="modal-next-action"></div>
+        </div>
+    </div>
+
+    <script src="words.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
